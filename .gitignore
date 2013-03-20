@@ -1,0 +1,12 @@
+mkmf.log
+Makefile
+*.o
+*.bundle
+*.so
+*.gem
+*.log
+tmp
+.yardoc
+doc
+test/*.dat
+test/*.idx
