@@ -39,7 +39,7 @@ module CT
       { name:       self.name,
         key_type:   self.human_key_type,
         allow_dups: self.allow_dups?,
-        allow_null: self.allow_null?,
+        #allow_null: self.allow_null?,
         key_length: self.key_length,
         segments:   self.segments.collect { |segment| segment.to_h } }
     end

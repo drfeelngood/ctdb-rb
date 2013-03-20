@@ -1,5 +1,5 @@
 require 'rake/extensiontask'
-require 'rake/testtask'
+#require 'rake/testtask'
 require 'yard'
 
 $:.unshift(File.dirname(__FILE__) + '/lib')
@@ -24,5 +24,5 @@ task :tag do
 end
 
 YARD::Rake::YardocTask.new do |t|
-  t.files = ['lib/ctdb.rb', 'ext/**/*.c']
+  t.files = ['lib/**/*.rb', 'ext/**/*.c']
 end

@@ -259,8 +259,8 @@ rb_ct_table_get_create_mode(VALUE self)
     ct_table *table;
 
     GetCTTable(self, table);
-
-    return FIX2INT(ctdbGetTableCreateMode(table->handle));
+    
+    return INT2FIX(ctdbGetTableCreateMode(table->handle));
 }
 
 /*

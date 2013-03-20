@@ -13,8 +13,11 @@ Gem::Specification.new do |s|
   s.files       = Dir['lib/**/*.rb'] + 
                   Dir['ext/ctdb_ext/*.{h,c,rb}']
 
+  s.executables << 'ctdb'
   s.test_files  = Dir['test/*.rb']
 
   s.extensions  = [ 'ext/ctdb_ext/extconf.rb' ]
 
+
+  s.add_dependency "thor"
 end
