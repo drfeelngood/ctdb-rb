@@ -43,10 +43,11 @@ module CT
 
     # TODO: clean the primary_index= method up.
     def self.primary_index=(*args)
-      index_name = args[0].shift
+      args = args.shift
+      index_name, opts = ( args.is_a?(Array) ? args : [ args, {} ] )
       @primary_index             = {}
       @primary_index[:name]      = index_name && index_name.to_s
-      @primary_index[:increment] = args[0][:increment].to_s rescue nil
+      @primary_index[:increment] = opts[:increment].to_s || nil
     end
 
     def self.primary_index
