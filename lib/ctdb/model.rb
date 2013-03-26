@@ -41,14 +41,12 @@ module CT
       @table_path
     end
 
-    # @param [Symbol] index_name
-    # @param [Hash] opts
-    # @option opts [Symbol] :name
-    # @option opts [Symbol] :increment
-    def self.set_primary_index(index_name, opts={})
+    # TODO: clean the primary_index= method up.
+    def self.primary_index=(*args)
+      index_name = args[0].shift
       @primary_index             = {}
       @primary_index[:name]      = index_name && index_name.to_s
-      @primary_index[:increment] = opts[:increment].to_s || nil
+      @primary_index[:increment] = args[0][:increment].to_s rescue nil
     end
 
     def self.primary_index
