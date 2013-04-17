@@ -1,32 +1,24 @@
 require 'mkmf'
 
-def osx?
-  !!(RUBY_PLATFORM =~ /darwin/)
+#def osx?
+  #!!(RUBY_PLATFORM =~ /darwin/)
+#end
+
+#def linux?
+  #!!(RUBY_PLATFORM =~ /linux/)
+#end
+
+if enable_config("debug")
+  $defs.push("-DDEBUG")
 end
-
-def linux?
-  !!(RUBY_PLATFORM =~ /linux/)
-end
-
-def fail(msg)
-  msg << <<-EOS
-  
-Try using the following options:
-
-  --with-sdk-include=/path/to/faircom/include/sdk
-  --with-sdk-lib=/path/to/faircom/lib/sdk
-EOS
-  printf("extconf.rb failure: %s\n", msg)
-  exit
-end
-
-$CFLAGS << " -fPIC"
-
-dir_config("sdk")
 
 errors = []
-errors << "'ctdbsdk.h'" unless have_header('ctdbsdk.h')
-errors << "'mtclient'"  unless have_library('mtclient', 'ctdbAllocSession')
-fail("missing dependencies: #{errors.join(',')}") unless errors.empty?
+errors << "'ctdbsdk.h'" unless find_header('ctdbsdk.h')
+errors << "'mtclient'"  unless find_library('mtclient', 'ctdbAllocSession')
+
+unless errors.empty?
+  puts "Error: missing dependencies: #{errors.join(',')}"
+  exit
+end
 
 create_makefile("ctdb_ext")
