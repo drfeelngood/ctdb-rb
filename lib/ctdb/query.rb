@@ -136,10 +136,15 @@ module CT
 
     def each(&block)
       query = clone
-      query.record.first if query.options[:find_mode] == :set
+      
+      if query.options[:find_mode] == :set
+        return query if query.record.first.nil?
+      end
+
       begin
         yield( query.init_object ) 
       end while query.record.next
+      
       query
     end
 
