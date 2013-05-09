@@ -33,21 +33,21 @@ rb_ct_record_new(VALUE klass, VALUE rb_table)
     ct_record *record;
     ct_table *table;
     VALUE obj;
-    
+    VALUE argv[1] = { rb_table };
+
     Check_Type(rb_table, T_DATA);
 
     GetCTTable(rb_table, table);
 
     obj = Data_Make_Struct(klass, ct_record, 0, free_rb_ct_record, record);
     record->table_ptr = table->handle;
-    
+
     if ( ( record->handle = ctdbAllocRecord(record->table_ptr)) == NULL)
-        rb_raise(cCTError, "[%d] ctdbAllocRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbAllocRecord failed.",
             ctdbGetError(record->table_ptr));
 
-    VALUE argv[1] = { rb_table };
     rb_obj_call_init(obj, 1, argv); // CT::Record.initialize(table)
-    
+
     return obj;
 }
 
@@ -83,7 +83,7 @@ rb_ct_record_clear(VALUE self)
     GetCTRecord(self, record);
 
     if ( ctdbClearRecord(record->handle) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbClearRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbClearRecord failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -104,14 +104,14 @@ rb_ct_record_get_count(VALUE self)
     GetCTRecord(self, record);
 
     if ( ctdbGetRecordCount(record->handle, &cnt) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbGetRecordCount failed.", 
+        rb_raise(cCTError, "[%d] ctdbGetRecordCount failed.",
             ctdbGetError(record->handle));
 
     return INT2FIX(cnt);
 }
 
 /*
- * Retrieves the current default index name. When the record handle is initialized 
+ * Retrieves the current default index name. When the record handle is initialized
  * for the first time, the default index is set to zero.
  *
  * @return [CT::Index, nil]
@@ -126,15 +126,35 @@ rb_ct_record_get_default_index(VALUE self)
     GetCTRecord(self, record);
 
     if ( ( i = ctdbGetDefaultIndex(record->handle) ) == -1 )
-        rb_raise(cCTError, "[%d] ctdbGetDefaultIndex failed.", 
+        rb_raise(cCTError, "[%d] ctdbGetDefaultIndex failed.",
                 ctdbGetError(record->handle));
 
     if ( ( ndx = ctdbGetIndex(record->table_ptr, i) ) == NULL )
-        rb_raise(cCTError, "[%d] ctdbGetIndex failed.", 
+        rb_raise(cCTError, "[%d] ctdbGetIndex failed.",
             ctdbGetError(record->handle));
 
     return rb_ct_index_new(cCTIndex, ndx);
 }
+
+/*
+ * Delete an existing record.
+ *
+ * @raise [CT::Error] ctdbDeleteRecord failed.
+ */
+static VALUE
+rb_ct_record_delete_bang(VALUE self)
+{
+    ct_record *record;
+
+    GetCTRecord(self, record);
+
+    if ( ctdbDeleteRecord(record->handle) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbDeleteRecord failed.",
+            ctdbGetError(record->handle));
+
+    return Qnil;
+}
+
 
 /*
  * Retrieves the current filter expression for the record.
@@ -169,7 +189,7 @@ rb_ct_record_set_filter(VALUE self, VALUE filter)
     GetCTRecord(self, record);
 
     if ( ctdbFilterRecord(record->handle, RSTRING_PTR(filter)) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbFilterRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbFilterRecord failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -189,9 +209,9 @@ rb_ct_record_is_filtered(VALUE self)
 }
 
 /*
- * Find a record using the find mode as the find strategy.  Before using 
+ * Find a record using the find mode as the find strategy.  Before using
  * CT::Record#find:
- *  
+ *
  *
  * @param [Fixnum] mode The mode used to look for the record.
  * @raise [CT::Error] ctdbFindRecord failed.
@@ -204,7 +224,7 @@ rb_ct_record_find(VALUE self, VALUE mode)
     GetCTRecord(self, record);
 
     if ( ctdbFindRecord(record->handle, FIX2INT(mode)) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbFindRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbFindRecord failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -235,7 +255,7 @@ rb_ct_record_first_bang(VALUE self)
     GetCTRecord(self, record);
 
     if ( ctdbFirstRecord(record->handle) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbFirstRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbFirstRecord failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -258,17 +278,17 @@ rb_ct_record_get_field(VALUE self, VALUE field_name)
 
     GetCTRecord(self, record);
 
-    if ( ( field = ctdbGetFieldByName(record->table_ptr, 
+    if ( ( field = ctdbGetFieldByName(record->table_ptr,
             RSTRING_PTR(field_name)) ) == NULL )
-        rb_raise(cCTError, "[%d] ctdbGetFieldByName failed", 
+        rb_raise(cCTError, "[%d] ctdbGetFieldByName failed",
             ctdbGetError(record->handle));
 
     field_nbr  = ctdbGetFieldNbr(field);
     field_type = ctdbGetFieldType(field);
-    
+
     switch(field_type){
         case CT_BOOL :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_bool"), 1, field_name); 
+            rb_value = rb_funcall(self, rb_intern("get_field_as_bool"), 1, field_name);
             break;
          case CT_TINYINT :
          case CT_SMALLINT :
@@ -279,7 +299,11 @@ rb_ct_record_get_field(VALUE self, VALUE field_name)
         case CT_UTINYINT :
         case CT_USMALLINT :
         case CT_UINTEGER :
+        case CT_EFLOAT : // THIS IS PROBABLY NOT RIGHT!
             rb_value = rb_funcall(self, rb_intern("get_field_as_unsigned"), 1, field_name);
+            break;
+        case CT_NUMBER :
+            rb_value = rb_funcall(self, rb_intern("get_field_as_number"), 1, field_name);
             break;
         case CT_CHARS :
         case CT_FPSTRING :
@@ -305,15 +329,44 @@ rb_ct_record_get_field(VALUE self, VALUE field_name)
             rb_value = rb_funcall(self, rb_intern("get_field_as_time"), 1, field_name);
             break;
         case CT_TIMESTAMP :
-        case CT_EFLOAT :
+            rb_value = rb_funcall(self, rb_intern("get_field_as_timestamp"), 1, field_name);
+            break;
         //case CT_BINARY :
-        case CT_NUMBER :
-        case CT_CURRENCY :
             rb_raise(rb_eNotImpError, "TODO: get_field field for `%s'", RSTRING_PTR(field_name));
             break;
     }
     
     return rb_value;
+}
+
+/*
+ *
+ * @param [ct_record] *record Pointer to the record.
+ * @param [Fixnum, String] id The field number or name.
+ * @return [Boolean]
+ * @raise [CT::Error] ctdbGetFieldAsBool failed.
+ */
+NINT
+get_field_number(ct_record *record, VALUE id)
+{
+  NINT field_number;
+
+  switch ( rb_type(id) ) {
+      case T_STRING :
+          if ( ( field_number = ctdbGetFieldNumberByName(record->handle,
+                  RSTRING_PTR(id)) ) == -1 )
+              rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.",
+                  ctdbGetError(record->handle));
+          break;
+      case T_FIXNUM :
+          field_number = FIX2INT(id);
+          break;
+      default:
+          rb_raise(rb_eArgError, "Unexpected value type `%s'",
+              rb_obj_classname(id));
+          break;
+  }
+  return field_number;
 }
 
 /*
@@ -327,28 +380,14 @@ static VALUE
 rb_ct_record_get_field_as_bool(VALUE self, VALUE id)
 {
     ct_record *record;
-    NINT i; // Field number
+    NINT field_number;
     CTBOOL value;
 
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+    field_number = get_field_number(record, id);
 
-    if ( ctdbGetFieldAsBool(record->handle, i, &value) != CTDBRET_OK )
+    if ( ctdbGetFieldAsBool(record->handle, field_number, &value) != CTDBRET_OK )
         rb_raise(cCTError, "[%d] ctdbGetFieldAsBool failed.", 
             ctdbGetError(record->handle));
 
@@ -366,32 +405,19 @@ rb_ct_record_get_field_as_date(VALUE self, VALUE id)
 {
     ct_record *record;
     ct_date *date;
-    NINT i;             // Field number
+    NINT field_number;
     CTDATE value;       // Hopefully the Date retrieved from the field
     CTHANDLE field;     // Field handle
     VALUE obj;          // The Date as a Ruby object.
-    
+
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
-    field = ctdbGetField(record->table_ptr, i);
+    field_number = get_field_number(record, id);
 
-    if ( ctdbGetFieldAsDate(record->handle, i, &value) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbGetFieldAsDate failed.", 
+    field = ctdbGetField(record->table_ptr, field_number);
+
+    if ( ctdbGetFieldAsDate(record->handle, field_number, &value) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbGetFieldAsDate failed.",
             ctdbGetError(record->handle));
 
     obj = Data_Make_Struct(cCTDate, ct_date, 0, free_rb_ct_date, date);
@@ -399,6 +425,38 @@ rb_ct_record_get_field_as_date(VALUE self, VALUE id)
     date->type  = ctdbGetFieldDefaultDateType(field);
 
     return obj;
+}
+
+/*
+ *
+ *
+ * @param [Fixnum, String] id The field number or name.
+ * @return [CT::Date]
+ */
+static VALUE
+rb_ct_record_get_field_as_timestamp(VALUE self, VALUE id)
+{
+    // ct_record *record;
+    // ct_date *date;
+    // NINT field_number;
+    // CTDATE value;       // Hopefully the Date retrieved from the field
+    // CTHANDLE field;     // Field handle
+    // VALUE obj;          // The Datetime as a Ruby object.
+
+    // GetCTRecord(self, record);
+    //
+    // get_field_number(&field_number, record, id);
+    // field = ctdbGetField(record->table_ptr, field_number);
+    //
+    // if ( ctdbGetFieldAsDate(record->handle, i, &value) != CTDBRET_OK )
+    //     rb_raise(cCTError, "[%d] ctdbGetFieldAsDate failed.",
+    //         ctdbGetError(record->handle));
+    //
+    // obj = Data_Make_Struct(cCTDate, ct_date, 0, free_rb_ct_date, date);
+    // date->value = value;
+    // date->type  = ctdbGetFieldDefaultDateType(field);
+
+    return 0;
 }
 
 /*
@@ -412,31 +470,17 @@ rb_ct_record_get_field_as_time(VALUE self, VALUE id)
     ct_time *time;
     CTHANDLE field;
     CTTIME value;
-    NINT i;
-    VALUE obj; 
+    NINT field_number;
+    VALUE obj;
 
     GetCTRecord(self, record);
-    
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
-    
-    field = ctdbGetField(record->table_ptr, i);
 
-    if ( ctdbGetFieldAsTime(record->handle, i, &value) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbGetFieldAsDate failed.", 
+    field_number = get_field_number(record, id);
+
+    field = ctdbGetField(record->table_ptr, field_number);
+
+    if ( ctdbGetFieldAsTime(record->handle, field_number, &value) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbGetFieldAsDate failed.",
             ctdbGetError(record->handle));
 
     obj = Data_Make_Struct(cCTDate, ct_time, 0, free_rb_ct_time, time);
@@ -457,29 +501,15 @@ static VALUE
 rb_ct_record_get_field_as_float(VALUE self, VALUE id)
 {
     ct_record *record;
-    NINT i; // Field number
+    NINT field_number;
     CTFLOAT value;
-    
+
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+    field_number = get_field_number(record, id);
 
-    if ( ctdbGetFieldAsFloat(record->handle, i, &value) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbGetFieldAsFloat failed.", 
+    if ( ctdbGetFieldAsFloat(record->handle, field_number, &value) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbGetFieldAsFloat failed.",
             ctdbGetError(record->handle));
 
     return rb_float_new(value);
@@ -496,34 +526,50 @@ static VALUE
 rb_ct_record_get_field_as_signed(VALUE self, VALUE id)
 {
     ct_record *record;
-    NINT i; // Field number
+    NINT field_number;
     CTSIGNED value;
-    
+
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+    field_number = get_field_number(record, id);
 
-    if ( ctdb_record_is_field_null(record->handle, i) == YES ) return Qnil;
+    if ( ctdb_record_is_field_null(record->handle, field_number) == YES ) return Qnil;
 
-    if ( ctdbGetFieldAsSigned(record->handle, i, &value) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbGetFieldAsSigned failed.", 
+    if ( ctdbGetFieldAsSigned(record->handle, field_number, &value) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbGetFieldAsSigned failed.",
             ctdbGetError(record->handle));
 
     return INT2FIX(value);
+}
+
+/*
+ * Retrieve the field as a number value.
+ *
+ * @param [Fixnum, String] id The field number or name.
+ * @return [Fixnum]
+ * @raise [CT::Error] ctdbGetFieldAsNumber failed.
+ */
+static VALUE
+rb_ct_record_get_field_as_number(VALUE self, VALUE id)
+{
+    ct_record *record;
+    NINT field_number;
+    CTNUMBER value;
+    CTFLOAT float_value;
+
+    GetCTRecord(self, record);
+
+    field_number = get_field_number(record, id);
+
+    if ( ctdb_record_is_field_null(record->handle, field_number) == YES ) return Qnil;
+
+    if ( ctdbGetFieldAsNumber(record->handle, field_number, &value) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbGetFieldAsNumber failed.",
+            ctdbGetError(record->handle));
+
+    ctdbNumberToFloat(&value, &float_value);
+
+    return rb_float_new(float_value);
 }
 
 /*
@@ -537,35 +583,21 @@ static VALUE
 rb_ct_record_get_field_as_string(VALUE self, VALUE id)
 {
     ct_record *record;
-    NINT i; // Field number
+    NINT field_number;
     VRLEN len;
 
     GetCTRecord(self, record);
-    
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
 
-    // Retrieve the actual field size. The actual size of variable-length fields, 
+    field_number = get_field_number(record, id);
+
+    // Retrieve the actual field size. The actual size of variable-length fields,
     // such as CT_VARCHAR and CT_VARBINARY, may vary from the defined size.
-    len = ctdbGetFieldDataLength(record->handle, i);
+    len = ctdbGetFieldDataLength(record->handle, field_number);
 
-    TEXT value[len+1]; // Field value
-    if ( ctdbGetFieldAsString(record->handle, i, value, 
+    TEXT value[len+1];
+    if ( ctdbGetFieldAsString(record->handle, field_number, value,
                                             (VRLEN)sizeof(value)) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbGetFieldAsString failed.", 
+        rb_raise(cCTError, "[%d] ctdbGetFieldAsString failed.",
                 ctdbGetError(record->handle));
 
     return rb_str_new_cstr(value);
@@ -581,31 +613,17 @@ static VALUE
 rb_ct_record_get_field_as_unsigned(VALUE self, VALUE id)
 {
     ct_record *record;
-    NINT i;
+    NINT field_number;
     CTUNSIGNED value;
 
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle,
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+    field_number = get_field_number(record, id);
 
-    if ( ctdb_record_is_field_null(record->handle, i) == YES ) return Qnil;
+    if ( ctdb_record_is_field_null(record->handle, field_number) == YES ) return Qnil;
 
-    if ( ctdbGetFieldAsUnsigned(record->handle, i, &value) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbGetFieldAsUnsigned failed.", 
+    if ( ctdbGetFieldAsUnsigned(record->handle, field_number, &value) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbGetFieldAsUnsigned failed.",
                 ctdbGetError(record->handle));
 
     return UINT2NUM(value);
@@ -652,7 +670,7 @@ rb_ct_record_last_bang(VALUE self)
     GetCTRecord(self, record);
 
     if ( ctdbLastRecord(record->handle) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbLastRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbLastRecord failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -688,7 +706,7 @@ rb_ct_record_lock_bang(VALUE self, VALUE mode)
     GetCTRecord(self, record);
 
     if ( ctdbLockRecord(record->handle, FIX2INT(mode)) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbLockRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbLockRecord failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -748,7 +766,7 @@ rb_ct_record_next(VALUE self)
 
     rc = ctdbNextRecord(record->handle);
     if ( rc != CTDBRET_OK && rc != INOT_ERR )
-        rb_raise(cCTError, "[%d] ctdbNextRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbNextRecord failed.",
             ctdbGetError(record->handle));
 
     return rc == INOT_ERR ? Qnil : self;
@@ -788,7 +806,7 @@ rb_ct_record_prev(VALUE self)
     
     rc = ctdbPrevRecord(record->handle);
     if ( rc != CTDBRET_OK && rc != INOT_ERR )
-        rb_raise(cCTError, "[%d] ctdbPrevRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbPrevRecord failed.",
             ctdbGetError(record->handle));
 
     return rc == INOT_ERR ? Qnil : self;
@@ -831,20 +849,20 @@ rb_ct_record_set_default_index(VALUE self, VALUE identifier)
     switch ( rb_type(identifier) ) {
         case T_STRING :
         case T_SYMBOL :
-            rc = ctdbSetDefaultIndexByName(record->handle, 
+            rc = ctdbSetDefaultIndexByName(record->handle,
                                               RSTRING_PTR(RSTRING(identifier)));
             break;
         case T_FIXNUM :
             rc = ctdbSetDefaultIndex(record->handle, FIX2INT(identifier));
             break;
         default :
-            rb_raise(rb_eArgError, "Unexpected value type `%s'", 
+            rb_raise(rb_eArgError, "Unexpected value type `%s'",
                      rb_obj_classname(identifier));
             break;
     }
 
     if ( rc != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbSetDefaultIndex failed.", 
+        rb_raise(cCTError, "[%d] ctdbSetDefaultIndex failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -858,7 +876,7 @@ static VALUE
 rb_ct_record_duplicate(VALUE self)
 {
     ct_record *record;
-    ct_table *table;
+    // ct_table *table;
     ct_record *record_copy;
     CTHANDLE ctrech;
     VALUE rb_table;
@@ -869,12 +887,12 @@ rb_ct_record_duplicate(VALUE self)
     if ( ( ctrech = ctdbDuplicateRecord(record->handle) ) == NULL )
         rb_raise(cCTError, "[%d] ctdbDuplicateRecord failed.",
             ctdbGetError(record->handle));
-    
+
     obj = Data_Make_Struct(cCTRecord, ct_record, 0, free_rb_ct_record, record_copy);
 
     VALUE argv[1] = { rb_table };
     rb_obj_call_init(obj, 1, argv); // CT::Record.initialize(table)
-    
+
     return obj;
 }
 
@@ -890,21 +908,21 @@ rb_ct_record_set_field(VALUE self, VALUE field_name, VALUE value)
     CTHANDLE field;
     NINT field_nbr;
     CTDBTYPE field_type;
-    
+
     Check_Type(field_name, T_STRING);
 
     GetCTRecord(self, record);
 
-    if ( ( field = ctdbGetFieldByName(record->table_ptr, 
+    if ( ( field = ctdbGetFieldByName(record->table_ptr,
                                             RSTRING_PTR(field_name)) ) == NULL )
-        rb_raise(cCTError, "[%d] ctdbGetFieldByName failed", 
+        rb_raise(cCTError, "[%d] ctdbGetFieldByName failed",
             ctdbGetError(record->handle));
 
     field_nbr  = ctdbGetFieldNbr(field);
     field_type = ctdbGetFieldType(field);
     switch ( field_type ) {
         case CT_BOOL :
-            rb_funcall(self, rb_intern("set_field_as_bool"), 2, field_name, value); 
+            rb_funcall(self, rb_intern("set_field_as_bool"), 2, field_name, value);
             break;
         case CT_TINYINT :
         case CT_SMALLINT :
@@ -930,11 +948,13 @@ rb_ct_record_set_field(VALUE self, VALUE field_name, VALUE value)
         case CT_DATE :
             rb_funcall(self, rb_intern("set_field_as_date"), 2, field_name, value);
             break;
+        case CT_TIMESTAMP :
+            rb_funcall(self, rb_intern("set_field_as_timestamp"), 2, field_name, value);
+            break;
         case CT_MONEY :
         case CT_TIME :
         case CT_FLOAT :
         case CT_DOUBLE :
-        case CT_TIMESTAMP :
         case CT_EFLOAT :
         // NOTE: I kept getting duplicate entry for this case CT_BINARY :
         case CT_NUMBER :
@@ -962,35 +982,21 @@ static VALUE
 rb_ct_record_set_field_as_bool(VALUE self, VALUE id, VALUE value)
 {
     ct_record *record;
-    NINT i;
+    NINT field_number;
     CTBOOL cval;
-    
+
     GetCTRecord(self, record);
 
     if ( rb_type(value) != T_TRUE && rb_type(value) != T_FALSE )
-        rb_raise(rb_eArgError, "Unexpected value type `%s' for CT_BOOL", 
+        rb_raise(rb_eArgError, "Unexpected value type `%s' for CT_BOOL",
                  rb_obj_classname(value));
-    
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                                                      RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+
+    field_number = get_field_number(record, id);
 
     cval = (rb_type(value) == T_TRUE ? YES : NO);
 
-    if ( ctdbSetFieldAsBool(record->handle, i, cval) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbSetFieldAsBool falied.", 
+    if ( ctdbSetFieldAsBool(record->handle, field_number, cval) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbSetFieldAsBool falied.",
             ctdbGetError(record->handle));
 
     return self;
@@ -1009,48 +1015,52 @@ static VALUE
 rb_ct_record_set_field_as_date(VALUE self, VALUE id, VALUE value)
 {
     ct_record *record;
-    NINT i;
+    NINT field_number;
     CTDATE ctdate;
     CTDBRET rc;
 
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if (( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+    field_number = get_field_number(record, id);
 
     if ( value == Qnil ) {
-      if ( ctdbSetFieldAsUnsigned(record->handle, i, 0) != CTDBRET_OK )
+      if ( ctdbSetFieldAsUnsigned(record->handle, field_number, 0) != CTDBRET_OK )
             rb_raise(cCTError, "[%d] ctdbSetFieldAsUnsigned failed.",
                 ctdbGetError(record->handle));
     } else {
-        rc = ctdbDatePack(&ctdate, 
-            FIX2INT(rb_funcall(value, rb_intern("year"), 0)), 
-            FIX2INT(rb_funcall(value, rb_intern("month"), 0)), 
+        rc = ctdbDatePack(&ctdate,
+            FIX2INT(rb_funcall(value, rb_intern("year"), 0)),
+            FIX2INT(rb_funcall(value, rb_intern("month"), 0)),
             FIX2INT(rb_funcall(value, rb_intern("day"), 0)));
 
         if ( rc != CTDBRET_OK )
             rb_raise(cCTError, "[%d] ctdbDatePack failed.", rc);
-        
-        if ( ctdbSetFieldAsDate(record->handle, i, ctdate) != CTDBRET_OK )
-            rb_raise(cCTError, "[%d] ctdbSetFieldAsDate failed.", 
+
+        if ( ctdbSetFieldAsDate(record->handle, field_number, ctdate) != CTDBRET_OK )
+            rb_raise(cCTError, "[%d] ctdbSetFieldAsDate failed.",
                 ctdbGetError(record->handle));
     }
 
     return self;
 }
+
+/*
+ *
+ *
+ * @param [Fixnum, String] id Field number or name.
+ * @param [Date] value
+ */
+// static VALUE
+// rb_ct_record_set_field_as_timestamp(VALUE self, VALUE id, VALUE value)
+// {
+//     ct_record *record;
+//     NINT field_number;
+// 
+//     GetCTRecord(self, record);
+// 
+//     return self;
+// }
+
 
 // static VALUE
 // rb_ct_record_set_field_as_datetime(VALUE self, VALUE num, VALUE value){}
@@ -1059,30 +1069,16 @@ static VALUE
 rb_ct_record_set_field_as_float(VALUE self, VALUE id, VALUE value)
 {
     ct_record *record;
-    NINT i;
+    NINT field_number;
 
     Check_Type(value, T_FLOAT);
-    
+
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+    field_number = get_field_number(record, id);
 
-    if ( ctdbSetFieldAsFloat(record->handle, i, RFLOAT_VALUE(value)) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbSetFieldAsFloat failed.", 
+    if ( ctdbSetFieldAsFloat(record->handle, field_number, RFLOAT_VALUE(value)) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbSetFieldAsFloat failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -1105,28 +1101,14 @@ static VALUE
 rb_ct_record_set_field_as_signed(VALUE self, VALUE id, VALUE value)
 {
     ct_record *record;
-    NINT i;
+    NINT field_number;
 
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                                                      RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+    field_number = get_field_number(record, id);
 
-    if ( ctdbSetFieldAsSigned(record->handle, i, FIX2INT(value)) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbSetFieldAsSigned failed.", 
+    if ( ctdbSetFieldAsSigned(record->handle, field_number, FIX2INT(value)) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbSetFieldAsSigned failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -1143,38 +1125,24 @@ static VALUE
 rb_ct_record_set_field_as_string(VALUE self, VALUE id, VALUE value)
 {
     ct_record *record;
-    NINT i;
+    NINT field_number;
     CTHANDLE f;
     VRLEN len;
 
     Check_Type(value, T_STRING);
-    
-    GetCTRecord(self, record);
-    
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
 
-    if ( !( f = ctdbGetField(record->table_ptr, i)) )
-        rb_raise(cCTError, "[%d] ctdbGetField failed.", 
+    GetCTRecord(self, record);
+
+    field_number = get_field_number(record, id);
+
+    if ( !( f = ctdbGetField(record->table_ptr, field_number)) )
+        rb_raise(cCTError, "[%d] ctdbGetField failed.",
             ctdbGetError(record->handle));
 
     if ( NIL_P(value) && ctdbGetFieldNullFlag(f) == NO )
         rb_raise(cCTError, "Field `%s' cannot be NULL.", ctdbGetFieldName(f));
 
-    if ( ctdbIsVariableField(record->handle, i) == NO ) {
+    if ( ctdbIsVariableField(record->handle, field_number) == NO ) {
         // Pad string to the fixed length.
         len = ctdbGetFieldLength(f);
 
@@ -1182,10 +1150,10 @@ rb_ct_record_set_field_as_string(VALUE self, VALUE id, VALUE value)
         while(RSTRING_LEN(value) < len-1)
             rb_str_cat2(value, " ");
     }
-    
-    if ( ctdbSetFieldAsString(record->handle, i, 
+
+    if ( ctdbSetFieldAsString(record->handle, field_number,
                       (RTEST(value) ? RSTRING_PTR(value) : '\0' )) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbSetFieldAsString failed.", 
+        rb_raise(cCTError, "[%d] ctdbSetFieldAsString failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -1201,35 +1169,21 @@ static VALUE
 rb_ct_record_set_field_as_time(VALUE self, VALUE id, VALUE value)
 {
     ct_record *record;
-    NINT i;
+    NINT field_number;
     CTDATE cttime;
     CTDBRET rc;
 
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                                                      RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+    field_number = get_field_number(record, id);
 
     rc = ctdbTimePack(&cttime,
-            FIX2INT(rb_funcall(value, rb_intern("hour"), 0)), 
-            FIX2INT(rb_funcall(value, rb_intern("min"), 0)), 
+            FIX2INT(rb_funcall(value, rb_intern("hour"), 0)),
+            FIX2INT(rb_funcall(value, rb_intern("min"), 0)),
             FIX2INT(rb_funcall(value, rb_intern("sec"), 0)));
 
-    if ( ctdbSetFieldAsTime(record->handle, i, cttime) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbSetFieldAsTime failed.", 
+    if ( ctdbSetFieldAsTime(record->handle, field_number, cttime) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbSetFieldAsTime failed.",
                 ctdbGetError(record->handle));
 
     return self;
@@ -1247,28 +1201,14 @@ static VALUE
 rb_ct_record_set_field_as_unsigned(VALUE self, VALUE id, VALUE value)
 {
     ct_record *record;
-    NINT i;
+    NINT field_number;
 
     GetCTRecord(self, record);
 
-    switch ( rb_type(id) ) {
-        case T_STRING :
-            if ( ( i = ctdbGetFieldNumberByName(record->handle, 
-                    RSTRING_PTR(id)) ) == -1 )
-                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.", 
-                    ctdbGetError(record->handle));
-            break;
-        case T_FIXNUM :
-            i = FIX2INT(id);
-            break;
-        default:
-            rb_raise(rb_eArgError, "Unexpected value type `%s'",
-                rb_obj_classname(id));
-            break;
-    }
+    field_number = get_field_number(record, id);
 
-    if ( ctdbSetFieldAsUnsigned(record->handle, i, FIX2INT(value)) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbSetFieldAsUnsigned failed.", 
+    if ( ctdbSetFieldAsUnsigned(record->handle, field_number, FIX2INT(value)) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbSetFieldAsUnsigned failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -1302,7 +1242,7 @@ rb_ct_record_set_on(VALUE self, VALUE bytes)
     GetCTRecord(self, record);
 
     if ( ctdbRecordSetOn(record->handle, FIX2INT(bytes)) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbRecordSetOn failed.", 
+        rb_raise(cCTError, "[%d] ctdbRecordSetOn failed.",
                 ctdbGetError(record->handle));
 
     return self;
@@ -1319,7 +1259,7 @@ rb_ct_record_set_off(VALUE self)
     GetCTRecord(self, record);
 
     if ( ctdbRecordSetOff(record->handle) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbRecordSetOff failed.", 
+        rb_raise(cCTError, "[%d] ctdbRecordSetOff failed.",
             ctdbGetError(record->handle));
 
     return self;
@@ -1350,7 +1290,7 @@ rb_ct_record_unlock_bang(VALUE self)
     GetCTRecord(self, record);
 
     if ( ctdbUnlockRecord(record->handle) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbUnlockRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbUnlockRecord failed.",
             ctdbGetError(record->handle));
 
     return Qtrue;
@@ -1369,17 +1309,17 @@ rb_ct_record_write_bang(VALUE self)
     GetCTRecord(self, record);
 
     if ( ctdbWriteRecord(record->handle) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbWriteRecord failed.", 
+        rb_raise(cCTError, "[%d] ctdbWriteRecord failed.",
             ctdbGetError(record->handle));
 
     return self;
 }
-  
+
 void
 init_rb_ct_record()
 {
     cCTRecord = rb_define_class_under(mCT, "Record", rb_cObject);
-    
+
     rb_define_singleton_method(cCTRecord, "new", rb_ct_record_new, 1);
     rb_define_method(cCTRecord, "initialize", rb_ct_record_init, 1);
     rb_define_method(cCTRecord, "new_record?", rb_ct_record_is_new, 0);
@@ -1387,6 +1327,7 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "count", rb_ct_record_get_count, 0);
     rb_define_method(cCTRecord, "default_index", rb_ct_record_get_default_index, 0);
     rb_define_method(cCTRecord, "default_index=", rb_ct_record_set_default_index, 1);
+    rb_define_method(cCTRecord, "delete!", rb_ct_record_delete_bang, 0);
     rb_define_method(cCTRecord, "duplicate", rb_ct_record_duplicate, 0);
     rb_define_method(cCTRecord, "filter", rb_ct_record_get_filter, 0);
     rb_define_method(cCTRecord, "filter=", rb_ct_record_set_filter, 1);
@@ -1400,10 +1341,13 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "get_field_as_date", rb_ct_record_get_field_as_date, 1);
     rb_define_method(cCTRecord, "get_field_as_float", rb_ct_record_get_field_as_float, 1);
     rb_define_alias(cCTRecord, "get_field_as_money", "get_field_as_float");
+    rb_define_alias(cCTRecord, "get_field_as_currency", "get_field_as_float");
+    rb_define_method(cCTRecord, "get_field_as_number", rb_ct_record_get_field_as_number, 1);
     rb_define_method(cCTRecord, "get_field_as_signed", rb_ct_record_get_field_as_signed, 1);
     rb_define_method(cCTRecord, "get_field_as_string", rb_ct_record_get_field_as_string, 1);
     rb_define_method(cCTRecord, "get_field_as_time", rb_ct_record_get_field_as_time, 1);
     rb_define_method(cCTRecord, "get_field_as_unsigned", rb_ct_record_get_field_as_unsigned, 1);
+    rb_define_method(cCTRecord, "get_field_as_timestamp", rb_ct_record_get_field_as_timestamp, 1);
     rb_define_method(cCTRecord, "get_lock_mode", rb_ct_record_get_lock_mode, 0);
     rb_define_method(cCTRecord, "last", rb_ct_record_last, 0);
     rb_define_method(cCTRecord, "last!", rb_ct_record_last_bang, 0);

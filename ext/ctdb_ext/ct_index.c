@@ -57,7 +57,7 @@ rb_ct_index_get_allow_dups(VALUE self)
 
     GetCTIndex(self, index);
 
-    return ctdbGetIndexDuplicateFlag(index->handle) == YES ? Qfalse : Qtrue;
+    return ctdbGetIndexDuplicateFlag(index->handle) == YES ? Qtrue : Qfalse;
 }
 
 /*
