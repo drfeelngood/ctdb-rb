@@ -53,7 +53,7 @@ module CT
     def self.primary_index
       @primary_index
     end
-    
+
     def self.table
       raise "Uninitialized CT::Model#session" if session.nil?
       session.open_table(table_path, table_name)
@@ -76,14 +76,17 @@ module CT
     def initialize(attribs=nil)
       @attributes = {}
       @dirty_attributes = {}
-      @new_record = false
+      @new_record = true
       @destroyed  = false
+
+      @index = table.get_index(self.primary_index[:name])
+      @segments = @index.segments.collect{|segment| segment.field_name}
 
       initialize_attributes
       update_attributes(attribs) unless attribs.nil?
       yield self if block_given?
-    end    
-    
+    end
+
     def table
       self.class.table
     end
@@ -135,41 +138,77 @@ module CT
     # @param [Hash] attribs
     def update_attributes(attribs = {})
       attribs.each { |name, value| write_attribute(name, value) }
-    end 
-    
+    end
+
     def increment(attribute, by = 1)
       self[attribute] ||= 0
       self[attribute] += by
       self
     end
 
-    def create
-      index = table.get_index(primary_index[:name])
-      index_segments = index.segments.inject({}) do |hash, segment|
-        value = self.read_attribute(segment.field_name) 
+    def record_exists?
+      result = false
+      record = CT::Record.new(table).clear
+      @segments.each do |segment|
+        record.set_field(segment, attributes[segment])
+      end
+
+      begin
+        result = record.find(CT::FIND_EQ) != nil
+      rescue
+      end
+      result
+    end
+
+    def save
+      create_or_update unless self.dirty_attributes.empty? && self.persisted?
+    end
+
+    def create_or_update
+      new_record? ? create : update
+    end
+
+    def update
+      index_segments = @index.segments.inject({}) do |hash, segment|
+          value = self.read_attribute(segment.field_name)
         hash[segment.field_name] = value unless value.nil?
         hash
       end
 
-      begin
-        query = Query.new(self, table)
-                     .index(index.name)
-                     .index_segments(index_segments).set
-         
-        if obj = query.last
-          puts "increment"
-          query.lock_write! 
-          
-        else
-          puts "first record!"
-          record.set_field(primary_index[:increment], 0)
-          record.write!
-        end
-      rescue CT::Error => e
-        retry if r.errno == 2
-        p e
-      ensure
+      query = Query.new(self, table)
+                   .index(@index.name)
+                   .index_segments(index_segments)
 
+      if query.eq
+        attributes.each do |field, value|
+          next if index_segments.keys.include? field # Don't change the segment since you're updating the record.
+          begin
+            query.record.set_field(field, value)
+          rescue Object => failure
+            # TODO: Resolve failures thrown in this loop.
+          end
+        end
+
+        @dirty_attributes = {} if query.record.write!
+      else
+        raise CT::RecordNotFound.new
+      end
+    end
+
+    def create
+      if record_exists? && !@index.allow_dups?
+        raise CT::Error.new("A record with this index already exists.")
+      else
+        record = CT::Record.new(self.table).clear
+
+        attributes.each do |field, value|
+          begin
+            record.set_field(field, value)
+          rescue Object => failure
+          end
+        end
+
+        @new_record = false if record.write!
       end
     end
 
@@ -190,7 +229,7 @@ module CT
                 _value = read_attribute(field.name)
                 _value = _value.duplicable? ? _value.clone : _value
               rescue TypeError, NoMethodError
-              end 
+              end
               unless @dirty_attributes.include?(field.name)
                 @dirty_attributes[field.name] = _value
               end
