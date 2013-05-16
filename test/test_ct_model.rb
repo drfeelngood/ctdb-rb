@@ -13,7 +13,7 @@ class TestCTModel < Test::Unit::TestCase
 
     assert_nothing_raised{ @model = TestModel.new(f) }
 
-    reset_record(@model) if record_exists?(@model)
+    delete_record(@model) if @model.record_exists?
 
     # Confirm No record Exists
     assert_raise(CT::Error) { get_record_attribute(@model, 't_varchar') }
@@ -29,8 +29,7 @@ class TestCTModel < Test::Unit::TestCase
 
     # Call to save with no dirty attributes
     assert_nothing_raised{ @model.save }
-
-    reset_record(@model)
+    delete_record(@model)
   end
 
   def test_attribute_methods
@@ -82,9 +81,9 @@ class TestCTModel < Test::Unit::TestCase
     assert_equal(@model.dirty_attributes["t_chars"], f["t_chars"])
   end
 
-  def reset_record(model)
+  def delete_record(model)
     record = CT::Record.new(model.table).clear
-    index = model.table.get_index(model.primary_index[:name])
+    index = model.primary_index ? model.table.get_index(model.primary_index[:name]) : model.table.indecies.first
     index.segments.each do |segment|
       record.set_field(segment.field_name, model[segment.field_name])
     end
@@ -93,26 +92,9 @@ class TestCTModel < Test::Unit::TestCase
     record.delete!
   end
 
-  def record_exists?(model)
-    result = false
-    record = CT::Record.new(model.table).clear
-    index = model.table.get_index(model.primary_index[:name])
-    index.segments.each do |segment|
-      record.set_field(segment.field_name, model[segment.field_name])
-    end
-
-    begin
-      if record.find(CT::FIND_EQ)
-        result = true
-      end
-    rescue
-    end
-    result
-  end
-
   def get_record_attribute(model, attribute)
     record = CT::Record.new(model.table).clear
-    index = model.table.get_index(model.primary_index[:name])
+    index = model.primary_index ? model.table.get_index(model.primary_index[:name]) : model.table.indecies.first
     index.segments.each do |segment|
       record.set_field(segment.field_name, model[segment.field_name])
     end
