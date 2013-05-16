@@ -3,7 +3,7 @@ require 'forwardable'
 module CT
   class Query
 
-    class SymbolOperator 
+    class SymbolOperator
 
       attr_reader :field_name
       attr_reader :operator
@@ -18,7 +18,7 @@ module CT
     end
 
     class Filter
-      attr_reader :expression 
+      attr_reader :expression
 
       # @param [String, Array, Hash] expression
       def initialize(expression)
@@ -42,12 +42,12 @@ module CT
     #def_delegator :@record, :lock_
 
     OPTS = [ :find_mode,
-             :index, 
+             :index,
              :index_segments,
-             :limit, 
-             :offset, 
-             :fields, 
-             :filter, 
+             :limit,
+             :offset,
+             :fields,
+             :filter,
              :endif ].freeze
 
     attr_reader :model
@@ -57,7 +57,7 @@ module CT
     attr_accessor :init_offset
 
     # @param [Constant] model
-    # @param [CT::Table] table 
+    # @param [CT::Table] table
     def initialize(model, table, options={})
       @model    = model
       @table    = table
@@ -70,8 +70,8 @@ module CT
       query.prepare
       query.record.find(CT::FIND_EQ)
       query.init_object
-    rescue 
-      nil
+    # rescue
+    #   nil
     end
 
     def eq!
@@ -136,15 +136,15 @@ module CT
 
     def each(&block)
       query = clone
-      
+
       if query.options[:find_mode] == :set
         return query if query.record.first.nil?
       end
 
       begin
-        yield( query.init_object ) 
+        yield( query.init_object )
       end while query.record.next
-      
+
       query
     end
 
@@ -191,7 +191,7 @@ module CT
     end
 
     def merge(opts={})
-      opts.each do |key, value| 
+      opts.each do |key, value|
         key = key.to_sym
         unless OPTS.include?(key)
           raise InvalidQuery.new("Unknown CT::Query#option `#{key}'")
@@ -201,9 +201,9 @@ module CT
       self
     end
 
-    def prepare 
+    def prepare
       @record.default_index = @options[:index].to_s if @options[:index]
-     
+
       if @options[:index_segments]
         @options[:index_segments].each do |field, value|
           @record.set_field(field.to_s, value)
@@ -218,24 +218,19 @@ module CT
     end
 
     def init_object
-      obj = model.new
-      obj.attributes.each do |key, _|
-        begin
-          obj.write_attribute(key, @record.get_field(key))
-        rescue Exception => e
-          puts "BUG: (#{e.class}) #{e.message}"
-        end
+      attributes = {}
+      table.fields.each do |field|
+        attributes[field.name] = @record.get_field(field.name)
       end
-      obj
+      model.class.new(attributes)
     end
 
     private
 
       def validate!
-         
-        if @options[:index_segments] 
+        if @options[:index_segments]
           # Require an index of index segments given.
-          unless @options[:index] 
+          unless @options[:index]
             raise "You must define an index if index_segments specified."
           end
           # Make sure the supplied index segments actual exist for the given
