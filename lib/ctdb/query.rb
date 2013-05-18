@@ -218,11 +218,15 @@ module CT
     end
 
     def init_object
-      attributes = {}
-      table.fields.each do |field|
-        attributes[field.name] = @record.get_field(field.name)
+      obj = @model.new
+      obj.attributes.each do |key, _|
+        begin
+          obj.write_attribute(key, @record.get_field(key))
+        rescue Exception => e
+          puts "BUG: (#{e.class}) #{e.message}"
+        end
       end
-      model.class.new(attributes)
+      obj
     end
 
     private

@@ -79,9 +79,6 @@ module CT
       @new_record = true
       @destroyed  = false
 
-      @index = table.get_index(self.primary_index[:name])
-      @segments = @index.segments.collect{|segment| segment.field_name}
-
       initialize_attributes
       update_attributes(attribs) unless attribs.nil?
       yield self if block_given?
@@ -147,9 +144,11 @@ module CT
     end
 
     def record_exists?
+      index = get_index
+      segments = index.segments.collect{|segment| segment.field_name}
       result = false
       record = CT::Record.new(table).clear
-      @segments.each do |segment|
+      segments.each do |segment|
         record.set_field(segment, attributes[segment])
       end
 
@@ -169,14 +168,16 @@ module CT
     end
 
     def update
-      index_segments = @index.segments.inject({}) do |hash, segment|
+      index = get_index
+
+      index_segments = index.segments.inject({}) do |hash, segment|
           value = self.read_attribute(segment.field_name)
         hash[segment.field_name] = value unless value.nil?
         hash
       end
 
-      query = Query.new(self, table)
-                   .index(@index.name)
+      query = Query.new(self.class, table)
+                   .index(index.name)
                    .index_segments(index_segments)
 
       if query.eq
@@ -196,7 +197,8 @@ module CT
     end
 
     def create
-      if record_exists? && !@index.allow_dups?
+      index = get_index
+      if record_exists? && !index.allow_dups?
         raise CT::Error.new("A record with this index already exists.")
       else
         record = CT::Record.new(self.table).clear
@@ -236,6 +238,14 @@ module CT
               write_attribute(field.name, value)
             end
           end
+        end
+      end
+
+      def get_index
+        if self.primary_index
+          table.get_index(self.primary_index[:name])
+        else
+          self.table.indecies.first
         end
       end
 
