@@ -70,8 +70,8 @@ module CT
       query.prepare
       query.record.find(CT::FIND_EQ)
       query.init_object
-    # rescue
-    #   nil
+    rescue
+      nil
     end
 
     def eq!
