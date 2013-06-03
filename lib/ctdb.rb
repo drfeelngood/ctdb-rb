@@ -6,6 +6,7 @@ end
 
 module CT
   class RecordNotFound < StandardError; end
+  class RecordNotUnique < StandardError; end
   class UnknownAttribute < StandardError; end
   class InvalidQuery < StandardError; end
 end

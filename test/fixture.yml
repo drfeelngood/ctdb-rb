@@ -1,81 +1,81 @@
 -
-    t_bool: false
-    t_tinyint: 1
-    t_utinyint: 1
-    t_smallint: 8
-    t_usmallint: 1
-    t_integer: 0
-    t_uinteger: 1
-    t_money: "1,000.00"
-    t_date: 1984-01-10
-    t_time: 2001-12-14 21:59:43.10 -05:00
-    t_float: 2.75
-    t_double:
-    t_timestamp:
-    t_efloat:
-    t_binary:
-    t_chars: "foo"
-    t_fpstring: "Y"
-    t_f2string: "NA"
-    t_f4string: "UNK"
-    t_bigint: 2652295
-    t_number: 12345
-    t_currency:
-    t_pstring: " "
-    t_varbinary:
-    t_lvb:
-    t_varchar: "I love c extensions!"
+    bool: false
+    tinyint: 1
+    utinyint: 1
+    smallint: 8
+    usmallint: 1
+    integer: 0
+    uinteger: 1
+    money: "1,000.00"
+    date: 1984-01-10
+    time: 2001-12-14 21:59:43.10 -05:00
+    float: 2.75
+    double:
+    timestamp:
+    efloat:
+    binary:
+    chars: "foo"
+    fpstring: "Y"
+    f2string: "NA"
+    f4string: "UNK"
+    bigint: 2652295
+    number: 12345
+    currency:
+    pstring: " "
+    varbinary:
+    lvb:
+    varchar: "I love c extensions!"
 -
-    t_bool: false
-    t_tinyint: 0
-    t_utinyint: 1
-    t_smallint: 8
-    t_usmallint: 7
-    t_integer: 0
-    t_uinteger: 2
-    t_money: "1,000.00"
-    t_date: 2000-01-01
-    t_time: 
-    t_float: 2.75
-    t_double:
-    t_timestamp:
-    t_efloat:
-    t_binary:
-    t_chars: "foo"
-    t_fpstring: "N"
-    t_f2string: "NA"
-    t_f4string: "YES"
-    t_bigint: 2652295
-    t_number: 12345
-    t_currency:
-    t_pstring: "Y"
-    t_varbinary:
-    t_lvb:
-    t_varchar: "Bacon is meat candy."
+    bool: false
+    tinyint: 0
+    utinyint: 1
+    smallint: 8
+    usmallint: 7
+    integer: 0
+    uinteger: 2
+    money: "1,000.00"
+    date: 2000-01-01
+    time: 
+    float: 2.75
+    double:
+    timestamp:
+    efloat:
+    binary:
+    chars: "foo"
+    fpstring: "N"
+    f2string: "NA"
+    f4string: "YES"
+    bigint: 2652295
+    number: 12345
+    currency:
+    pstring: "Y"
+    varbinary:
+    lvb:
+    varchar: "Bacon is meat candy."
 -
-    t_bool: false
-    t_tinyint: 1
-    t_utinyint: 1
-    t_smallint: 8
-    t_usmallint: 7
-    t_integer: 0
-    t_uinteger: 3
-    t_money: "1,000.00"
-    t_date: 
-    t_time: 
-    t_float: 2.75
-    t_double:
-    t_timestamp:
-    t_efloat:
-    t_binary:
-    t_chars: "foo"
-    t_fpstring: "Y"
-    t_f2string: "NA"
-    t_f4string: "UNK"
-    t_bigint: 2652295
-    t_number: 12345
-    t_currency:
-    t_pstring: "N"
-    t_varbinary:
-    t_lvb:
-    t_varchar: "It's yummy beer time."
+    bool: false
+    tinyint: 1
+    utinyint: 1
+    smallint: 8
+    usmallint: 7
+    integer: 0
+    uinteger: 3
+    money: "1,000.00"
+    date: 
+    time: 
+    float: 2.75
+    double:
+    timestamp:
+    efloat:
+    binary:
+    chars: "foo"
+    fpstring: "Y"
+    f2string: "NA"
+    f4string: "UNK"
+    bigint: 2652295
+    number: 12345
+    currency:
+    pstring: "N"
+    varbinary:
+    lvb:
+    varchar: "It's yummy beer time."
