@@ -19,6 +19,16 @@ module CT
           self.type == CT::BIGINT || self.type == NUMBER
     end
 
+    def unsigned_integer?
+      self.type == CT::UTINYINT || self.type == CT::USMALLINT ||
+          self.type == CT::UINTEGER
+    end
+
+    def signed_integer?
+      self.type == CT::TINYINT || self.type == CT::SMALLINT ||
+          self.type == CT::INTEGER || self.type == CT::BIGINT
+    end
+
     def date?
       self.type == CT::DATE
     end

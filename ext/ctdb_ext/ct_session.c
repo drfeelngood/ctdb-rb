@@ -27,9 +27,6 @@ rb_ct_session_new(VALUE klass, VALUE mode)
     
     obj = Data_Make_Struct(klass, ct_session, 0, free_rb_ct_session, session);
 
-    // Allocate a new session for logon only. No session or database dictionary
-    // files will be used. No database functions can be used with this session 
-    // mode.
     if ( ( session->handle = ctdbAllocSession(FIX2INT(mode)) ) == NULL )
         rb_raise(cCTError, "ctdbAllocSession failed.");
 
