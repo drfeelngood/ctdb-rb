@@ -45,10 +45,6 @@ module CT
     #include Enumerable
     extend Forwardable
 
-    def_delegator :@model, :table
-    #def_delegator :@record, :first, :first_record
-    #def_delegator :@record, :last, :last_record
-    #def_delegator :@record, :next, :next_record
     def_delegator :@record, :set_on?, :record_set?
 
     def_delegators :@record, :clear, 
@@ -69,7 +65,8 @@ module CT
              :offset,
              :fields,
              :filter,
-             :endif ].freeze
+             :endif,
+             :transformer ].freeze
 
 
     # @!attribute [r] table 
@@ -89,25 +86,26 @@ module CT
     # @option opts [Fixnum] :limit
     # @option opts [Fixnum] :offset
     # @option opts [String] :filter
+    # @option opts [Proc] :transformer
     def initialize(table, options={})
       @table   = table
       @record  = CT::Record.new(@table).clear
       @options = options
     end
 
-    #def initialize_copy(original)
-      #super
-      #@record = original.record.duplicate
-    #end
+    def initialize_copy(original)
+      @options = original.options.dup
+    end
 
     # @!group Finders
 
     # Find a record equal to the current record target
     # @return [CT::Query, nil] The query object or nil if no record is found.
     def eq
-      query = clone.merge(find_mode: :eq)
-      query.prepare
-      query.find(CT::FIND_EQ)
+      prepare
+      find(CT::FIND_EQ)
+      
+      cursor
     end
 
     # @see CT::Query#eq
@@ -117,72 +115,81 @@ module CT
     end
 
     def set
-      query = clone.merge({ find_mode: :set })
-      query.prepare
+      prepare
+      
       bytes = 0
-      query.options[:index_segments].each do |field, value|
-        segment = query.default_index.get_segment(field.to_s)
+      options[:index_segments].each do |field, value|
+        segment = default_index.get_segment(field.to_s)
         bytes += segment.field.length
         bytes -= 1 if segment.absolute_byte_offset?
-      end if query.options[:index_segments]
+      end if options[:index_segments]
       
-      query.set_on(bytes)
-      query.first
+      set_on(bytes)
+      first
+      
+      cursor
     end
   
     # Find a record greater than the current record target
     # @return [CT::Query, nil] The query object or nil if no records found.
     def gt
-      query = clone.merge(find_mode: :gt)
-      query.prepare
-      query.find(CT::FIND_GT)
+      prepare
+      find(CT::FIND_GT)
+    
+      cursor
     end
 
     # Find a record greater then or equal to the current record target
     # @return [CT::Query, nil] The query object or nil if no records found.
     def ge
-      query = clone.merge(find_mode: :ge)
-      query.prepare
-      query.find(CT::FIND_GE)
+      prepare
+      find(CT::FIND_GE)
+    
+      cursor
     end
 
     # Find a record less than the current record target
     # @return [CT::Query, nil] The query object or nil if not records found.
     def lt
-      query = clone.merge(find_mode: :lt)
-      query.prepare
-      query.find(CT::FIND_LT)
+      prepare
+      find(CT::FIND_LT)
+    
+      cursor
     end
     
     # Find a record less than or equal to the current record target
     # @return [CT::Query, nil] The query object or nil if not records found.
-    def le
-      query = clone.merge(find_mode: :le)
-      query.prepare
-      query.find(CT::FIND_LE)
+    def le(opts={})
+      prepare
+      find(CT::FIND_LE)
+    
+      cursor
     end
 
     def first
-      query = clone
-      query.prepare
-      query.record.first
+      prepare
+      record.first
+
+      cursor
     end
 
     def last
-      query = clone
-      query.prepare
-      query.record.last
+      prepare
+      record.last
+    
+      cursor
     end
 
     def each(&block)
-      query = clone
-
-      query.record.first
-      begin
-        yield( query.record )
-      end while query.record.next
+      record.first
       
-      query
+      begin
+        yield( cursor )
+      end while record.next
+      
+      record.first
+      
+      cursor
     end
 
     #def all
@@ -192,39 +199,53 @@ module CT
     #end
 
     # @!endgroup
+    
+    def cursor
+      if record && options[:transformer]
+        options[:transformer].call(record)
+      else
+        record
+      end
+    end
 
     # @!group Criteria
 
     def index(name)
-      clone.tap { |query| query.options[:index] = name }
+      options[:index] = name
+      self
     end
 
     def index_segments(criteria={})
-      clone.tap { |query| query.options[:index_segments] = criteria }
+      options[:index_segments] = criteria
+      self
     end
 
     # @param [Fixnum] n
     def limit(n=nil)
-      clone.tap { |query| query.options[:limit] = n }
+      options[:limit] = n
+      self
     end
 
     # @param [Fixnum] n
     def offset(n=nil)
-      clone.tap { |query| query.options[:offset] = n }
+      options[:offset] = n
+      self
     end
 
     def fields(*args)
-      clone.tap { |query| query.options[:fields] = *args }
+      options[:fields] = args
+      self
     end
 
     # @param [String, Hash] expression Query filter expression
     def filter(expression)
-      #clone.tap { |query| query.options[:filter] = Filter.new(expression) }
-      clone.tap { |query| query.options[:filter] = expression }
+      options[:filter] = expression
+      self
     end
 
     def endif(criteria={})
-      clone.tap { |query| query.options[:endif] = criteria }
+      options[:endif] = criteria
+      self
     end
     
     # @!endgroup
@@ -239,24 +260,24 @@ module CT
         unless OPTS.include?(key)
           raise InvalidQuery.new("Unknown CT::Query#option `#{key}'")
         end
-        @options[key] = value
+        options[key] = value
       end
       self
     end
 
     def prepare
-      self.default_index = @options[:index].to_s if @options[:index]
+      self.default_index = options[:index].to_s if options[:index]
 
-      if @options[:index_segments]
-        @options[:index_segments].each do |field, value|
+      if options[:index_segments]
+        options[:index_segments].each do |field, value|
           set_field(field.to_s, value)
         end
       end
 
       validate!
 
-      if @options[:filter]
-        @record.filter = @options[:filter].to_s
+      if options[:filter]
+        record.filter = options[:filter].to_s
       end
     end
 
@@ -278,6 +299,16 @@ module CT
         }
           raise InvalidQuery.new("Index segments supplied are out of the " +
                                  "scope of `#{@options[:index]}'")
+        end
+      end
+
+      def perform
+        mode = case options[:find_mode]
+        when :eq then CT::FIND_EQ
+        end
+
+        unless mode.nil?
+          record.find(mode)
         end
       end
 
