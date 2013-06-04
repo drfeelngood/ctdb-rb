@@ -23,6 +23,11 @@ task :tag do
   `git tag v#{CT::Version}`
 end
 
+desc "Run test suite"
+task :test do
+  sh("cd test && sh test_suite.sh")
+end
+
 YARD::Rake::YardocTask.new do |t|
   t.files = ['lib/**/*.rb', 'ext/**/*.c']
 end

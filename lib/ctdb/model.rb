@@ -1,18 +1,29 @@
 module CT
   class Model
+
     @@session_handler = nil unless defined?(@@session_handler)
 
+    # Define CT::Session logon configuration
+    # @param [Hash] hash Configuration definition
+    # @see CT::Session#new
+    # @see CT::Session#logon
+    # @example
+    #   CT::Model.session = { username: "",  password: "", engine: "FairComs",
+    #                         mode: CT::SESSION_CTREE }
     def self.session=(hash) # TODO: , scope=:default)
       hash.symbolize_keys!
-      unless [:engine, :username, :password].all? { |k| hash.key?(k) }
-        raise CT::Error.new("Missing required CT::Session variablies.")
+      vars = [:engine, :username, :password, :mode]
+      unless vars.all? { |k| hash.key?(k) }
+        raise CT::Error.new("Missing required CT::Session variablies. " +
+                            vars.join(', '))
       end
-      
-      _session = CT::Session.new(CT::SESSION_CTREE)
+     
+      _session = CT::Session.new(hash[:mode])
       _session.logon(hash[:engine], hash[:username], hash[:password])
       @@session_handler = CT::SessionHandler.new(_session)
     end
 
+    # @return [CT::SessionHandler]
     def self.session# TODO: (scope=:default)
       @@session_handler
     end
@@ -41,7 +52,14 @@ module CT
       @table_path
     end
 
-    # TODO: clean the primary_index= method up.
+    # @overload primary_index=(name)
+    #   Define the models CT::Table default index
+    #   @param [Symbol] name The index name
+    # @overload primary_index=(name, increment)
+    #   Define the models CT::Table default index and the index segment in which
+    #     manual incrementation occurs.
+    #   @param [Symbol] name The index name
+    #   @param [Symbol] increment The index segment field name
     def self.primary_index=(*args)
       args = args.shift
       index_name, opts = ( args.is_a?(Array) ? args : [ args, {} ] )
@@ -51,51 +69,92 @@ module CT
     end
 
     def self.primary_index
-      @primary_index
+      @primary_index ||= { name: table.default_index.name, increment: nil }
     end
 
+    # Aquire the current sessions table handle for this model
+    # @return [CT::Table]
+    # @raise [CT::Error] if the CT::Model#session has not been defined
     def self.table
-      raise "Uninitialized CT::Model#session" if session.nil?
+      if session.nil?
+        raise CT::Error.new("[4003] No session handle.  You must define a " + 
+                            "CT::Model#session with CT::Model.session={}")
+      end
       session.open_table(table_path, table_name)
     end
 
-    # @param [Hash] options CT::Query options
-    def self.find(options={})
-      Query.new(self, table, options)
+    # Seek to a record based on the supplied primary index segment values
+    #
+    # @example
+    #   class Foo < CT::Model
+    #     primary_index :foo_ndx # :foo_val
+    #   end
+    #
+    #   class Bar < CT::Model
+    #     primary_index :foo_bar_ndx # :foo_val, :bar_val 
+    #   end
+    #
+    #   Foo.find(1) # { :foo_val => 1 }
+    #   Bar.find(1, "hello world") #  { :foo_val => 1, :bar_val => "hello world" }
+    def self.find(*criteria)
+      index_segments = {}
+      index = table.get_index(primary_index[:name])
+      index.segments.each_with_index do |segment, i|
+        index_segments[:"#{segment.field_name}"] = criteria[i]        
+      end
+      init_object(query.index(index.name).index_segments(index_segments).eq)
     end
 
-    # @param [Hash] index_segments
+    def self.query(options={})
+      query = Query.new(table)
+      query.merge(options)
+      query
+    end
+    
+    def self.all(&block)
+      instances = []
+      
+      query.each do |record|
+        instances << init_object(record, &block)
+      end
+
+      instances
+    end
+
+    def self.last
+      init_object(query.last)
+    end
+
+    # @param [Hash] conditions 
     def self.where(index_segments={})
-      find(index_segments: index_segments)
+      query(index_segments: index_segments)
     end
 
-    attr_reader :attributes
-
-    attr_reader :dirty_attributes
-
-    def initialize(attribs=nil)
-      @attributes = {}
-      @dirty_attributes = {}
-      @new_record = true
-      @destroyed  = false
-
-      initialize_attributes
-      update_attributes(attribs) unless attribs.nil?
-      yield self if block_given?
+    def self.count
+      query(index: primary_index[:name]).count
     end
 
-    def table
-      self.class.table
+    def self.create(attribs=nil)
+      me = new(attribs)
+      me.save
     end
-
-    def primary_index
-      self.class.primary_index
+    
+    # @!group Persistence
+    
+    def self.create(attribs=nil, &block)
+      if attribs.is_a?(Array)
+        attribs.collect { |a| create(a, &block) }
+      else
+        model = new(attribs, &block)
+        model.save
+        model
+      end
     end
 
     def new_record?
       @new_record
     end
-
+    
     def destroyed?
       @destroyed
     end
@@ -103,27 +162,94 @@ module CT
     def persisted?
       !(new_record? || destroyed?)
     end
+    
+    def save
+      result = new_record? ? create_record : update_record
+      result != false
+    end
 
+    def destroy
+      if persisted?
+        record = self.class.query.index(primary_index[:name])
+            .index_segments(primary_index_segments).eq
+        record.delete! unless record.nil?
+      end
+      @destroyed = true
+    end
+
+    # @!endgroup
+
+    # @!attribute [r] attributes
+    #   @return [Hash]
+    attr_reader :attributes
+    # @!attribute [r] new_record
+    #   @return [Boolean]
+    attr_reader :new_record
+    # @!attribute [r] dirty_attributes
+    #   @return [Hash]
+    attr_reader :dirty_attributes
+
+    # Initialize a new object with optional attributes.
+    # @param [Hash] attribs
+    def initialize(attribs=nil)
+      @new_record = true 
+
+      initialize_internals
+      initialize_attributes
+      update_attributes(attribs) unless attribs.nil?
+      yield self if block_given?
+    end
+
+    def init_with(ct_record)
+      initialize_internals
+      initialize_attributes
+
+      @attributes.each do |field_name, _|
+        begin
+          write_attribute(field_name, ct_record.get_field(field_name))
+        rescue NotImplementedError => e
+          warn(e.message)
+        end
+      end
+      @new_record = false
+    end
+
+    # @see CT::Model.table
+    def table
+      self.class.table
+    end
+
+    # @see CT::Model.primary_index
+    def primary_index
+      self.class.primary_index
+    end
+
+    # Retrieve a collection of defined attribute names
     # @return [Array]
     def attribute_names
       @attributes.keys
     end
 
+    # Is the given attribute defined for the model
     # @param [String. #to_s] name
     def has_attribute?(name)
       @attributes.key?(name.to_s)
     end
     alias :respond_to? :has_attribute?
 
+    # Get the given attribures value
     # @param [String, #to_s] name
+    # @raise [CT::UnknownAttributeError] if the attribute is not defined
     def read_attribute(name)
       raise CT::UnknownAttributeError.new(name) unless has_attribute?(name)
       @attributes[name.to_s]
     end
     alias :[] :read_attribute
 
-    # @param [String, #to_s) name
+    # Set the value of a given attribute
+    # @param [String, #to_s] name
     # @param [Object] value
+    # @raise [CT::UnknownAttributeError] if the attribute is not defined
     def write_attribute(name, value)
       raise CT::UnknownAttributeError.new(name) unless has_attribute?(name)
       name = name.to_s
@@ -132,94 +258,28 @@ module CT
     end
     alias :[]= :write_attribute
 
-    # @param [Hash] attribs
+    # Set a list of attributes
+    # @param [Hash] attribs Field key => value
     def update_attributes(attribs = {})
       attribs.each { |name, value| write_attribute(name, value) }
     end
 
+    # Bump the given attributes value
+    # @param [String, #to_s]
     def increment(attribute, by = 1)
+      attribute = attribute.to_s
       self[attribute] ||= 0
       self[attribute] += by
       self
     end
 
-    def record_exists?
-      index = get_index
-      segments = index.segments.collect{|segment| segment.field_name}
-      result = false
-      record = CT::Record.new(table).clear
-      segments.each do |segment|
-        record.set_field(segment, attributes[segment])
-      end
-
-      begin
-        result = record.find(CT::FIND_EQ) != nil
-      rescue
-      end
-      result
-    end
-
-    def save
-      create_or_update unless self.dirty_attributes.empty? && self.persisted?
-    end
-
-    def create_or_update
-      new_record? ? create : update
-    end
-
-    def update
-      index = get_index
-
-      index_segments = index.segments.inject({}) do |hash, segment|
-          value = self.read_attribute(segment.field_name)
-        hash[segment.field_name] = value unless value.nil?
-        hash
-      end
-
-      query = Query.new(self.class, table)
-                   .index(index.name)
-                   .index_segments(index_segments)
-
-      if query.eq
-        attributes.each do |field, value|
-          next if index_segments.keys.include? field # Don't change the segment since you're updating the record.
-          begin
-            query.record.set_field(field, value)
-          rescue Object => failure
-            # TODO: Resolve failures thrown in this loop.
-          end
-        end
-
-        @dirty_attributes = {} if query.record.write!
-      else
-        raise CT::RecordNotFound.new
-      end
-    end
-
-    def create
-      index = get_index
-      if record_exists? && !index.allow_dups?
-        raise CT::Error.new("A record with this index already exists.")
-      else
-        record = CT::Record.new(self.table).clear
-
-        attributes.each do |field, value|
-          begin
-            record.set_field(field, value)
-          rescue Object => failure
-          end
-        end
-
-        @new_record = false if record.write!
-      end
-    end
-
-    # Reset attributes to original values.
-    #def reset!
-      #@dirty_attributes.each { |field, value| write_attribute(field, value) }
-    #end
-
     private
+
+      def initialize_internals
+        @attributes = {}
+        @dirty_attributes = {}
+        @destroyed = false
+      end
 
       def initialize_attributes
         table.get_fields.each do |field|
@@ -241,22 +301,87 @@ module CT
         end
       end
 
-      def get_index
-        if self.primary_index
-          table.get_index(self.primary_index[:name])
-        else
-          self.table.indecies.first
+      # Populate a Hash of field => value for each segment of the primary index
+      # @return [Hash]
+      def primary_index_segments
+        table.get_index(primary_index[:name]).segments.inject({}) do |h, s|
+          v = read_attribute(s.field_name)
+          h[s.field_name] = v unless v.nil?
+          h
         end
       end
 
-      def to_record
+      def create_record
         record = CT::Record.new(table).clear
-        @attributes.each do |k,v| record.set_field(k, v)
-          puts "#{k} => #{v}"
-          record.set_field(k, v)
+        @dirty_attributes.each do |key,  _|
+          begin
+            record.set_field(key, @attributes[key])
+          rescue NotImplementedError => e
+            warn(e.message)
+          end
         end
-        record
+
+        if primary_index[:increment] && 
+            ( field = table.get_field(primary_index[:increment]) ) &&
+            ( record.get_field(primary_index[:increment]).nil? )
+         
+          last_record = self.class.query.index(primary_index[:name])
+              .index_segments(primary_index_segments).last
+         
+          value = if last_record
+            last_record.get_field(field.name) + 1
+          elsif field.unsigned_integer?
+            1
+          elsif field.signed_integer?
+            0
+          else
+            raise CT::Error.new("Unhandled primary index increment field type")
+          end
+          
+          record.set_field(field.name, value)
+        end
+
+        record.write!
+        @new_record = false
+        return true
       end
 
+      # * Read the record
+      # * Aquire a write lock
+      # * Update record fields
+      # * Write record
+      def update_record
+        record = CT::Query.new(table, index: primary_index[:name], 
+                      index_segments: primary_index_segments).eq
+
+        expire_at = Time.now.to_f + (0.5 * 10)
+        until record.lock(CT::LOCK_WRITE)
+          if expire_at > Time.now.to_f
+            raise CT::LockTimeoutError.new
+          end
+          sleep(0.5)
+          next
+        end
+       
+        @dirty_attributes.each do |key, _|
+          begin
+            record.set_field(key, @attributes[key])
+          rescue NotImplementedError => e
+            warn(e.message)
+          end
+        end
+        record.write
+        record.lock(CT::LOCK_FREE)
+        @new_record, @dirty_attributes = false, {}
+        return true
+      end
+
+      def self.init_object(ct_record, &block)
+        instance = allocate
+        instance.init_with(ct_record)
+        yield( instance ) if block_given?
+        instance
+      end
+  
   end
 end

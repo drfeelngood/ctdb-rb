@@ -9,6 +9,36 @@ extern VALUE cCTIndex;
 extern VALUE cCTDate;
 extern VALUE cCTTime;
 
+/*
+ *
+ * @param [ct_record] *record Pointer to the record.
+ * @param [Fixnum, String] id The field number or name.
+ * @return [Boolean]
+ * @raise [CT::Error] ctdbGetFieldAsBool failed.
+ */
+static NINT
+get_field_number(ct_record *record, VALUE id)
+{
+  NINT field_number;
+
+  switch ( rb_type(id) ) {
+      case T_STRING :
+          if ( ( field_number = ctdbGetFieldNumberByName(record->handle,
+                  RSTRING_PTR(id)) ) == -1 )
+              rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.",
+                  ctdbGetError(record->handle));
+          break;
+      case T_FIXNUM :
+          field_number = FIX2INT(id);
+          break;
+      default:
+          rb_raise(rb_eArgError, "Unexpected value type `%s'",
+              rb_obj_classname(id));
+          break;
+  }
+  return field_number;
+}
+
 static void
 free_rb_ct_record(void *ptr)
 {
@@ -87,6 +117,21 @@ rb_ct_record_clear(VALUE self)
             ctdbGetError(record->handle));
 
     return self;
+}
+
+static VALUE
+rb_ct_record_clear_field(VALUE self, VALUE id)
+{
+    ct_record *record;
+    NINT field_number;
+    CTHANDLE field;     // Field handle
+
+    GetCTRecord(self, record);
+
+    field_number = get_field_number(record, id);
+    field        = ctdbGetField(record->table_ptr, field_number);
+
+    return ctdbClearField(field, field_number) == CTDBRET_OK ? Qtrue : Qfalse;
 }
 
 /*
@@ -329,44 +374,18 @@ rb_ct_record_get_field(VALUE self, VALUE field_name)
             rb_value = rb_funcall(self, rb_intern("get_field_as_time"), 1, field_name);
             break;
         case CT_TIMESTAMP :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_timestamp"), 1, field_name);
-            break;
-        //case CT_BINARY :
+            /*
+             *rb_value = rb_funcall(self, rb_intern("get_field_as_timestamp"), 1, field_name);
+             *break;
+             */
+        /*
+         *case CT_BINARY :
+         */
             rb_raise(rb_eNotImpError, "TODO: get_field field for `%s'", RSTRING_PTR(field_name));
             break;
     }
     
     return rb_value;
-}
-
-/*
- *
- * @param [ct_record] *record Pointer to the record.
- * @param [Fixnum, String] id The field number or name.
- * @return [Boolean]
- * @raise [CT::Error] ctdbGetFieldAsBool failed.
- */
-NINT
-get_field_number(ct_record *record, VALUE id)
-{
-  NINT field_number;
-
-  switch ( rb_type(id) ) {
-      case T_STRING :
-          if ( ( field_number = ctdbGetFieldNumberByName(record->handle,
-                  RSTRING_PTR(id)) ) == -1 )
-              rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.",
-                  ctdbGetError(record->handle));
-          break;
-      case T_FIXNUM :
-          field_number = FIX2INT(id);
-          break;
-      default:
-          rb_raise(rb_eArgError, "Unexpected value type `%s'",
-              rb_obj_classname(id));
-          break;
-  }
-  return field_number;
 }
 
 /*
@@ -434,7 +453,7 @@ rb_ct_record_get_field_as_date(VALUE self, VALUE id)
  * @return [CT::Date]
  */
 static VALUE
-rb_ct_record_get_field_as_timestamp(VALUE self, VALUE id)
+rb_ct_record_get_field_as_datetime(VALUE self, VALUE id)
 {
     // ct_record *record;
     // ct_date *date;
@@ -772,6 +791,21 @@ rb_ct_record_next(VALUE self)
     return rc == INOT_ERR ? Qnil : self;
 }
 
+static VALUE
+rb_ct_record_get_nbr(VALUE self)
+{
+    ct_record *record;
+    NINT n;
+
+    GetCTRecord(self, record);
+
+    if ( ( n = ctdbGetRecordNbr(record->handle) ) == -1 )
+        rb_raise(cCTError, "[%d] ctdbGetRecordNbr failed.", 
+            ctdbGetError(record->handle));
+
+    return INT2FIX(n);
+}
+
 /*
  * Get the current record offset
  * @return [Fixnum]
@@ -807,9 +841,28 @@ rb_ct_record_prev(VALUE self)
     rc = ctdbPrevRecord(record->handle);
     if ( rc != CTDBRET_OK && rc != INOT_ERR )
         rb_raise(cCTError, "[%d] ctdbPrevRecord failed.",
-            ctdbGetError(record->handle));
+                 ctdbGetError(record->handle));
 
     return rc == INOT_ERR ? Qnil : self;
+}
+
+/*
+ * Reread the record
+ */
+static VALUE
+rb_ct_record_read(VALUE self)
+{
+    ct_record *record;
+    CTDBRET rc;
+
+    GetCTRecord(self, record);
+
+    rc = ctdbReadRecord(record->handle);
+    if ( rc != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbReadRecord failed.", 
+                 ctdbGetError(record->handle));
+
+    return self;
 }
 
 /*
@@ -876,22 +929,19 @@ static VALUE
 rb_ct_record_duplicate(VALUE self)
 {
     ct_record *record;
-    // ct_table *table;
     ct_record *record_copy;
-    CTHANDLE ctrech;
-    VALUE rb_table;
+    CTHANDLE handle;
     VALUE obj;
 
     GetCTRecord(self, record);
 
-    if ( ( ctrech = ctdbDuplicateRecord(record->handle) ) == NULL )
+    if ( ( handle = ctdbDuplicateRecord(record->handle) ) == NULL )
         rb_raise(cCTError, "[%d] ctdbDuplicateRecord failed.",
             ctdbGetError(record->handle));
-
+   
     obj = Data_Make_Struct(cCTRecord, ct_record, 0, free_rb_ct_record, record_copy);
-
-    VALUE argv[1] = { rb_table };
-    rb_obj_call_init(obj, 1, argv); // CT::Record.initialize(table)
+    record_copy->handle = handle;
+    record_copy->table_ptr = record->table_ptr;
 
     return obj;
 }
@@ -948,9 +998,12 @@ rb_ct_record_set_field(VALUE self, VALUE field_name, VALUE value)
         case CT_DATE :
             rb_funcall(self, rb_intern("set_field_as_date"), 2, field_name, value);
             break;
+        /*
+         *case CT_TIMESTAMP :
+         *    rb_funcall(self, rb_intern("set_field_as_datetime"), 2, field_name, value);
+         *    break;
+         */
         case CT_TIMESTAMP :
-            rb_funcall(self, rb_intern("set_field_as_timestamp"), 2, field_name, value);
-            break;
         case CT_MONEY :
         case CT_TIME :
         case CT_FLOAT :
@@ -1044,26 +1097,8 @@ rb_ct_record_set_field_as_date(VALUE self, VALUE id, VALUE value)
     return self;
 }
 
-/*
- *
- *
- * @param [Fixnum, String] id Field number or name.
- * @param [Date] value
- */
-// static VALUE
-// rb_ct_record_set_field_as_timestamp(VALUE self, VALUE id, VALUE value)
-// {
-//     ct_record *record;
-//     NINT field_number;
-// 
-//     GetCTRecord(self, record);
-// 
-//     return self;
-// }
-
-
-// static VALUE
-// rb_ct_record_set_field_as_datetime(VALUE self, VALUE num, VALUE value){}
+//static VALUE
+//rb_ct_record_set_field_as_datetime(VALUE self, VALUE id, VALUE value) {}
 
 static VALUE
 rb_ct_record_set_field_as_float(VALUE self, VALUE id, VALUE value)
@@ -1297,8 +1332,18 @@ rb_ct_record_unlock_bang(VALUE self)
 }
 
 /*
- * Create or update an existing record.
  *
+ */
+static VALUE
+rb_ct_record_write(VALUE self)
+{
+    ct_record *record;
+
+    GetCTRecord(self, record);
+    return ctdbWriteRecord(record->handle) == CTDBRET_OK ? Qtrue : Qfalse;
+}
+/*
+ * Create or update an existing record.
  * @raise [CT::Error] ctdbWriteRecord failed.
  */
 static VALUE
@@ -1324,6 +1369,7 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "initialize", rb_ct_record_init, 1);
     rb_define_method(cCTRecord, "new_record?", rb_ct_record_is_new, 0);
     rb_define_method(cCTRecord, "clear", rb_ct_record_clear, 0);
+    rb_define_method(cCTRecord, "clear_field", rb_ct_record_clear_field, 1);
     rb_define_method(cCTRecord, "count", rb_ct_record_get_count, 0);
     rb_define_method(cCTRecord, "default_index", rb_ct_record_get_default_index, 0);
     rb_define_method(cCTRecord, "default_index=", rb_ct_record_set_default_index, 1);
@@ -1347,7 +1393,9 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "get_field_as_string", rb_ct_record_get_field_as_string, 1);
     rb_define_method(cCTRecord, "get_field_as_time", rb_ct_record_get_field_as_time, 1);
     rb_define_method(cCTRecord, "get_field_as_unsigned", rb_ct_record_get_field_as_unsigned, 1);
-    rb_define_method(cCTRecord, "get_field_as_timestamp", rb_ct_record_get_field_as_timestamp, 1);
+    /*
+     *rb_define_method(cCTRecord, "get_field_as_timestamp", rb_ct_record_get_field_as_timestamp, 1);
+     */
     rb_define_method(cCTRecord, "get_lock_mode", rb_ct_record_get_lock_mode, 0);
     rb_define_method(cCTRecord, "last", rb_ct_record_last, 0);
     rb_define_method(cCTRecord, "last!", rb_ct_record_last_bang, 0);
@@ -1357,9 +1405,12 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "write_locked?", rb_ct_record_is_write_locked, 0);
     rb_define_method(cCTRecord, "read_locked?", rb_ct_record_is_read_locked, 0);
     rb_define_method(cCTRecord, "next", rb_ct_record_next, 0);
+    rb_define_method(cCTRecord, "nbr", rb_ct_record_get_nbr, 0);
+    rb_define_alias(cCTRecord, "number", "nbr");
     rb_define_method(cCTRecord, "position", rb_ct_record_position, 0);
     rb_define_alias(cCTRecord,  "offset", "position");
     rb_define_method(cCTRecord, "prev", rb_ct_record_prev, 0);
+    rb_define_method(cCTRecord, "read", rb_ct_record_read, 0);
     rb_define_method(cCTRecord, "seek", rb_ct_record_seek, 1);
     rb_define_method(cCTRecord, "set_field", rb_ct_record_set_field, 2);
     rb_define_alias(cCTRecord,  "[]=", "set_field");
@@ -1375,5 +1426,6 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "set_off", rb_ct_record_set_off, 0);
     rb_define_method(cCTRecord, "unlock", rb_ct_record_unlock, 0);
     rb_define_method(cCTRecord, "unlock!", rb_ct_record_unlock_bang, 0);
+    rb_define_method(cCTRecord, "write", rb_ct_record_write, 0);
     rb_define_method(cCTRecord, "write!", rb_ct_record_write_bang, 0);
 }

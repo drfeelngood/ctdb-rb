@@ -5,103 +5,79 @@ class TestCTModel < Test::Unit::TestCase
 
   def setup
     CT::Model.session ||= _c
-  end
-
-  def test_save
-    f  = fixtures[0]
-    f1 = fixtures[1]
-
-    assert_nothing_raised{ @model = TestModel.new(f) }
-
-    delete_record(@model) if @model.record_exists?
-
-    # Confirm No record Exists
-    assert_raise(CT::Error) { get_record_attribute(@model, 't_varchar') }
-
-    # Initial call to save creates a new record.
-    assert_nothing_raised{ @model.save }
-    assert_equal(f['t_varchar'], get_record_attribute(@model, 't_varchar'))
-
-    # Second call to save updates the existing record.
-    @model.t_varchar = f1['t_varchar']
-    assert_nothing_raised{ @model.save }
-    assert_equal(f1['t_varchar'], get_record_attribute(@model, 't_varchar'))
-
-    # Call to save with no dirty attributes
-    assert_nothing_raised{ @model.save }
-    delete_record(@model)
+    @fixture ||= fixtures[0]
+    @model = TestModel.new(@fixture)
   end
 
   def test_attribute_methods
-    assert_nothing_raised do
-      @model = TestModel.new
-    end
-    assert_instance_of(TestModel, @model)
-
-    fixtures[0].each do |k,_|
+    @fixture.each do |k,_|
       assert(@model.has_attribute?(k), "TestModel missing `#{k}' attribute")
     end
 
-    fixtures[0].each do |k,v|
+    @fixture.each do |k,v|
       assert_nothing_raised("#write_attribute(#{k}, #{v})") do
         @model.write_attribute(k, v)
       end
     end
 
-    fixtures[0].each do |k,v|
+    @fixture.each do |k,v|
       assert_equal(@model.read_attribute(k), v, "#read_attribute(#{k})")
     end
 
-    fixtures[0].each do |k,v|
+    @fixture.each do |k,v|
       assert_nothing_raised("#[#{k}] = #{v}") do
         @model.write_attribute(k, v)
       end
     end
 
-    fixtures[0].each do |k,v|
+    @fixture.each do |k,v|
       assert_equal(@model.read_attribute(k), v, "#[#{k}]")
     end
   end
 
   def test_dirty_attributes
-    f = fixtures[0]
-
-    assert_nothing_raised do
-      @model = TestModel.new(f)
-    end
     assert(@model.dirty_attributes.empty?)
     assert_nothing_raised do
-      @model.t_chars = "xxx"
+      @model.chars = "xxx"
     end
     assert(@model.dirty_attributes.size == 1)
-    assert(@model.dirty_attributes.key?("t_chars"))
+    assert(@model.dirty_attributes.key?("chars"))
     assert_nothing_raised do
-      @model.t_chars = "aaa"
+      @model.chars = "aaa"
     end
-    assert_equal(@model.dirty_attributes["t_chars"], f["t_chars"])
+    assert_equal(@model.dirty_attributes["chars"], @fixture["chars"])
   end
 
-  def delete_record(model)
-    record = CT::Record.new(model.table).clear
-    index = model.primary_index ? model.table.get_index(model.primary_index[:name]) : model.table.indecies.first
-    index.segments.each do |segment|
-      record.set_field(segment.field_name, model[segment.field_name])
-    end
-
-    record = record.find(CT::FIND_EQ)
-    record.delete!
+  def test_count
+    assert_instance_of(Fixnum, TestModel.count)
   end
 
-  def get_record_attribute(model, attribute)
-    record = CT::Record.new(model.table).clear
-    index = model.primary_index ? model.table.get_index(model.primary_index[:name]) : model.table.indecies.first
-    index.segments.each do |segment|
-      record.set_field(segment.field_name, model[segment.field_name])
+  def test_create
+    @model = TestModel.new
+    assert_equal(false, @model.persisted?)
+    assert(@model.save)
+    assert(@model.persisted?)
+  end
+
+  def test_all
+    assert_instance_of(Array, TestModel.all)
+    TestModel.all.each_with_index do |m, n|
+      assert_equal(n+1, m.uinteger)
     end
+  end
 
-    record.find(CT::FIND_EQ)
+  def test_save
+    @model = TestModel.last
+    @model.varchar = "Hello World" 
+    assert(@model.save)
+    @model = TestModel.last
+    assert_equal("Hello World", @model.varchar)
+  end
 
-    record.get_field(attribute)
+  def test_destroy
+    @model = TestModel.last
+    @model.destroy
+    assert(@model.destroyed?)
   end
 
 end
