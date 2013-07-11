@@ -19,24 +19,24 @@ extern VALUE cCTTime;
 static NINT
 get_field_number(ct_record *record, VALUE id)
 {
-  NINT field_number;
+    NINT field_number;
 
-  switch ( rb_type(id) ) {
-      case T_STRING :
-          if ( ( field_number = ctdbGetFieldNumberByName(record->handle,
-                  RSTRING_PTR(id)) ) == -1 )
-              rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.",
-                  ctdbGetError(record->handle));
-          break;
-      case T_FIXNUM :
-          field_number = FIX2INT(id);
-          break;
-      default:
-          rb_raise(rb_eArgError, "Unexpected value type `%s'",
-              rb_obj_classname(id));
-          break;
-  }
-  return field_number;
+    switch ( rb_type(id) ) {
+        case T_STRING :
+            if ( ( field_number = ctdbGetFieldNumberByName(record->handle,
+                    RSTRING_PTR(id)) ) == -1 )
+                rb_raise(cCTError, "[%d] ctdbGetFieldNumberByName failed.",
+                    ctdbGetError(record->handle));
+            break;
+        case T_FIXNUM :
+            field_number = FIX2INT(id);
+            break;
+        default:
+            rb_raise(rb_eArgError, "Unexpected value type `%s'",
+                rb_obj_classname(id));
+            break;
+    }
+    return field_number;
 }
 
 static void
@@ -1366,6 +1366,7 @@ init_rb_ct_record()
     cCTRecord = rb_define_class_under(mCT, "Record", rb_cObject);
 
     rb_define_singleton_method(cCTRecord, "new", rb_ct_record_new, 1);
+    
     rb_define_method(cCTRecord, "initialize", rb_ct_record_init, 1);
     rb_define_method(cCTRecord, "new_record?", rb_ct_record_is_new, 0);
     rb_define_method(cCTRecord, "clear", rb_ct_record_clear, 0);
@@ -1382,12 +1383,9 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "first", rb_ct_record_first, 0);
     rb_define_method(cCTRecord, "first!", rb_ct_record_first_bang, 0);
     rb_define_method(cCTRecord, "get_field", rb_ct_record_get_field, 1);
-    rb_define_alias(cCTRecord,  "[]", "get_field");
     rb_define_method(cCTRecord, "get_field_as_bool", rb_ct_record_get_field_as_bool, 1);
     rb_define_method(cCTRecord, "get_field_as_date", rb_ct_record_get_field_as_date, 1);
     rb_define_method(cCTRecord, "get_field_as_float", rb_ct_record_get_field_as_float, 1);
-    rb_define_alias(cCTRecord, "get_field_as_money", "get_field_as_float");
-    rb_define_alias(cCTRecord, "get_field_as_currency", "get_field_as_float");
     rb_define_method(cCTRecord, "get_field_as_number", rb_ct_record_get_field_as_number, 1);
     rb_define_method(cCTRecord, "get_field_as_signed", rb_ct_record_get_field_as_signed, 1);
     rb_define_method(cCTRecord, "get_field_as_string", rb_ct_record_get_field_as_string, 1);
@@ -1406,14 +1404,14 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "read_locked?", rb_ct_record_is_read_locked, 0);
     rb_define_method(cCTRecord, "next", rb_ct_record_next, 0);
     rb_define_method(cCTRecord, "nbr", rb_ct_record_get_nbr, 0);
-    rb_define_alias(cCTRecord, "number", "nbr");
     rb_define_method(cCTRecord, "position", rb_ct_record_position, 0);
-    rb_define_alias(cCTRecord,  "offset", "position");
     rb_define_method(cCTRecord, "prev", rb_ct_record_prev, 0);
     rb_define_method(cCTRecord, "read", rb_ct_record_read, 0);
     rb_define_method(cCTRecord, "seek", rb_ct_record_seek, 1);
+    /*
+     *rb_define_method(cCTRecord, "serializer=", rb_ct_record_set_serializer, 1); 
+     */
     rb_define_method(cCTRecord, "set_field", rb_ct_record_set_field, 2);
-    rb_define_alias(cCTRecord,  "[]=", "set_field");
     rb_define_method(cCTRecord, "set_field_as_bool", rb_ct_record_set_field_as_bool, 2);
     rb_define_method(cCTRecord, "set_field_as_date", rb_ct_record_set_field_as_date, 2);
     rb_define_method(cCTRecord, "set_field_as_float", rb_ct_record_set_field_as_float, 2);
@@ -1428,4 +1426,11 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "unlock!", rb_ct_record_unlock_bang, 0);
     rb_define_method(cCTRecord, "write", rb_ct_record_write, 0);
     rb_define_method(cCTRecord, "write!", rb_ct_record_write_bang, 0);
+    
+    rb_define_alias(cCTRecord, "[]", "get_field");
+    rb_define_alias(cCTRecord, "[]=", "set_field");
+    rb_define_alias(cCTRecord, "get_field_as_money", "get_field_as_float");
+    rb_define_alias(cCTRecord, "get_field_as_currency", "get_field_as_float");
+    rb_define_alias(cCTRecord, "number", "nbr");
+    rb_define_alias(cCTRecord, "offset", "position");
 }

@@ -59,12 +59,12 @@ class TestCTModel < Test::Unit::TestCase
     assert(@model.persisted?)
   end
 
-  def test_all
-    assert_instance_of(Array, TestModel.all)
-    TestModel.all.each_with_index do |m, n|
-      assert_equal(n+1, m.uinteger)
-    end
-  end
+  #def test_all
+    #assert_instance_of(Array, TestModel.all)
+    #TestModel.all.each_with_index do |m, n|
+      #assert_equal(n+1, m.uinteger)
+    #end
+  #end
 
   def test_save
     @model = TestModel.last

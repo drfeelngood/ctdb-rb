@@ -1,5 +1,49 @@
+require 'forwardable'
+
 module CT
   class Model
+
+    module Finders 
+      extend Forwardable
+
+      def_delegators :query, :each, :all, :first, :last, :count 
+    
+      # Helper method to quickly construt a Query object.
+      # @param [Hash] options
+      # @see CT::Query
+      def query(options={})
+        query = Query.new(table)
+        options[:transformer] ||= begin
+          lambda { |ct_record|
+            instance = allocate
+            instance.init_with(ct_record)
+            instance
+          }
+        end
+        query.merge(options)
+        query
+      end
+
+      # Retrieve a given record or set of records based on the given criteria.
+      # @see CT::Query
+      def find(options={})
+        query(options)
+      end
+
+      # Seek a record by index and index segment values
+      # @param [Symbol, #to_s] index_name
+      def find_by(index_name, *values)
+        index_segments = {}
+        index = table.get_index(index_name.to_s)
+        index.segments.each_with_index do |segment, i|
+          index_segments[:"#{segment.field_name}"] = values[i]
+        end
+        query.index(index_name).index_segments(index_segments)
+      end
+    
+    end
+
+    extend Finders
 
     @@session_handler = nil unless defined?(@@session_handler)
 
@@ -82,58 +126,7 @@ module CT
       end
       session.open_table(table_path, table_name)
     end
-
-    # Seek to a record based on the supplied primary index segment values
-    #
-    # @example
-    #   class Foo < CT::Model
-    #     primary_index :foo_ndx # :foo_val
-    #   end
-    #
-    #   class Bar < CT::Model
-    #     primary_index :foo_bar_ndx # :foo_val, :bar_val 
-    #   end
-    #
-    #   Foo.find(1) # { :foo_val => 1 }
-    #   Bar.find(1, "hello world") #  { :foo_val => 1, :bar_val => "hello world" }
-    def self.find(*criteria)
-      index_segments = {}
-      index = table.get_index(primary_index[:name])
-      index.segments.each_with_index do |segment, i|
-        index_segments[:"#{segment.field_name}"] = criteria[i]        
-      end
-      init_object(query.index(index.name).index_segments(index_segments).eq)
-    end
-
-    def self.query(options={})
-      query = Query.new(table)
-      query.merge(options)
-      query
-    end
-    
-    def self.all(&block)
-      instances = []
-      
-      query.each do |record|
-        instances << init_object(record, &block)
-      end
-
-      instances
-    end
-
-    def self.last
-      init_object(query.last)
-    end
-
-    # @param [Hash] conditions 
-    def self.where(index_segments={})
-      query(index_segments: index_segments)
-    end
-
-    def self.count
-      query(index: primary_index[:name]).count
-    end
-
+   
     def self.create(attribs=nil)
       me = new(attribs)
       me.save
@@ -170,8 +163,11 @@ module CT
 
     def destroy
       if persisted?
-        record = self.class.query.index(primary_index[:name])
-            .index_segments(primary_index_segments).eq
+        record = Query.new(table) 
+                      .index(primary_index[:name]) 
+                      .index_segments(primary_index_segments)
+                      .eq
+        
         record.delete! unless record.nil?
       end
       @destroyed = true
@@ -324,9 +320,11 @@ module CT
         if primary_index[:increment] && 
             ( field = table.get_field(primary_index[:increment]) ) &&
             ( record.get_field(primary_index[:increment]).nil? )
-         
-          last_record = self.class.query.index(primary_index[:name])
-              .index_segments(primary_index_segments).last
+        
+          last_record = Query.new(table)
+                             .index(primary_index[:name])
+                             .index_segments(primary_index_segments)
+                             .last
          
           value = if last_record
             last_record.get_field(field.name) + 1
@@ -351,8 +349,10 @@ module CT
       # * Update record fields
       # * Write record
       def update_record
-        record = CT::Query.new(table, index: primary_index[:name], 
-                      index_segments: primary_index_segments).eq
+        record = Query.new(table)
+                      .index(primary_index[:name])
+                      .index_segments(primary_index_segments)
+                      .eq
 
         expire_at = Time.now.to_f + (0.5 * 10)
         until record.lock(CT::LOCK_WRITE)
@@ -374,13 +374,6 @@ module CT
         record.lock(CT::LOCK_FREE)
         @new_record, @dirty_attributes = false, {}
         return true
-      end
-
-      def self.init_object(ct_record, &block)
-        instance = allocate
-        instance.init_with(ct_record)
-        yield( instance ) if block_given?
-        instance
       end
   
   end
