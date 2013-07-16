@@ -3,11 +3,11 @@ require 'forwardable'
 module CT
   class Model
 
-    module Finders 
+    module Finders
       extend Forwardable
 
-      def_delegators :query, :each, :all, :first, :last, :count 
-    
+      def_delegators :query, :each, :all, :first, :last, :count
+
       # Helper method to quickly construt a Query object.
       # @param [Hash] options
       # @see CT::Query
@@ -40,7 +40,7 @@ module CT
         end
         query.index(index_name).index_segments(index_segments)
       end
-    
+
     end
 
     extend Finders
@@ -58,10 +58,10 @@ module CT
       hash.symbolize_keys!
       vars = [:engine, :username, :password, :mode]
       unless vars.all? { |k| hash.key?(k) }
-        raise CT::Error.new("Missing required CT::Session variablies. " +
+        raise CT::Error.new("Missing required CT::Session variables. " +
                             vars.join(', '))
       end
-     
+
       _session = CT::Session.new(hash[:mode])
       _session.logon(hash[:engine], hash[:username], hash[:password])
       @@session_handler = CT::SessionHandler.new(_session)
@@ -71,7 +71,7 @@ module CT
     def self.session# TODO: (scope=:default)
       @@session_handler
     end
-    
+
     # Set the table name
     # @param [Symbol, #to_s] value
     def self.table_name=(value)
@@ -109,7 +109,7 @@ module CT
       index_name, opts = ( args.is_a?(Array) ? args : [ args, {} ] )
       @primary_index             = {}
       @primary_index[:name]      = index_name && index_name.to_s
-      @primary_index[:increment] = opts[:increment].to_s || nil
+      @primary_index[:increment] = opts[:increment] ? opts[:increment].to_s : nil
     end
 
     def self.primary_index
@@ -126,14 +126,14 @@ module CT
       end
       session.open_table(table_path, table_name)
     end
-   
+
     def self.create(attribs=nil)
       me = new(attribs)
       me.save
     end
-    
+
     # @!group Persistence
-    
+
     def self.create(attribs=nil, &block)
       if attribs.is_a?(Array)
         attribs.collect { |a| create(a, &block) }
@@ -147,7 +147,7 @@ module CT
     def new_record?
       @new_record
     end
-    
+
     def destroyed?
       @destroyed
     end
@@ -155,7 +155,7 @@ module CT
     def persisted?
       !(new_record? || destroyed?)
     end
-    
+
     def save
       result = new_record? ? create_record : update_record
       result != false
@@ -167,7 +167,7 @@ module CT
                       .index(primary_index[:name]) 
                       .index_segments(primary_index_segments)
                       .eq
-        
+
         record.delete! unless record.nil?
       end
       @destroyed = true
@@ -320,12 +320,12 @@ module CT
         if primary_index[:increment] && 
             ( field = table.get_field(primary_index[:increment]) ) &&
             ( record.get_field(primary_index[:increment]).nil? )
-        
+
           last_record = Query.new(table)
                              .index(primary_index[:name])
                              .index_segments(primary_index_segments)
                              .last
-         
+
           value = if last_record
             last_record.get_field(field.name) + 1
           elsif field.unsigned_integer?
@@ -335,7 +335,7 @@ module CT
           else
             raise CT::Error.new("Unhandled primary index increment field type")
           end
-          
+
           record.set_field(field.name, value)
         end
 
@@ -362,7 +362,7 @@ module CT
           sleep(0.5)
           next
         end
-       
+
         @dirty_attributes.each do |key, _|
           begin
             record.set_field(key, @attributes[key])
@@ -375,6 +375,6 @@ module CT
         @new_record, @dirty_attributes = false, {}
         return true
       end
-  
+
   end
 end
