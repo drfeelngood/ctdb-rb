@@ -14,6 +14,7 @@ end
 require 'ctdb/version'
 require 'ctdb/core_ext/duplicable'
 require 'ctdb/core_ext/date'
+require 'ctdb/core_ext/time'
 require 'ctdb/core_ext/symbol'
 require 'ctdb/core_ext/hash'
 require 'ctdb/error'

@@ -11,4 +11,6 @@ typedef struct {
 
 #define GetCTDate(obj, val) ( val = (ct_date*)DATA_PTR(obj) );
 
+VALUE ct_date_init_with(pCTDATE dt);
+
 #endif

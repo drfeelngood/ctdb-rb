@@ -13,6 +13,19 @@ free_rb_ct_date(void *ptr)
     xfree(date);
 }
 
+VALUE
+ct_date_init_with(pCTDATE dt)
+{
+    ct_date *date;
+    VALUE obj;
+
+    obj = Data_Make_Struct(cCTDate, ct_date, 0, free_rb_ct_date, date); 
+    date->value = (CTDATE)*dt;
+    date->type  = CTDATE_MDCY;
+
+    return obj;
+}
+
 /*
  * Create a new instance of CT::Date 
  *
@@ -24,11 +37,9 @@ free_rb_ct_date(void *ptr)
 VALUE
 rb_ct_date_new(VALUE klass, VALUE year, VALUE month, VALUE day)
 {
-    ct_date *date;
-    CTDATE dt;
+    CTDATE date;
     CTDBRET rc;
     NINT y, m, d;
-    VALUE obj;
 
     Check_Type(year,  T_FIXNUM);
     Check_Type(month, T_FIXNUM);
@@ -38,13 +49,10 @@ rb_ct_date_new(VALUE klass, VALUE year, VALUE month, VALUE day)
     m = FIX2INT(month);
     d = FIX2INT(day);
 
-    if ( ( rc = ctdbDatePack(&dt, y, m, d) ) != CTDBRET_OK )
+    if ( ( rc = ctdbDatePack(&date, y, m, d) ) != CTDBRET_OK )
         rb_raise(cCTError, "[%d] ctdbDatePack failed.", rc);
-   
-    obj = Data_Make_Struct(klass, ct_date, 0, free_rb_ct_date, date); 
-    date->value = dt;
     
-    return obj;
+    return ct_date_init_with(&date);
 }
 
 /*
@@ -116,7 +124,7 @@ rb_ct_date_to_string(VALUE self)
             rb_raise(cCTError, "Unexpected default date format");
             break;
     }
-    
+
     if ( date->value > 0 ) {
         size = (VRLEN)(strlen(format) + 3);
         if ( (rc = ctdbDateToString(date->value, date->type, &str, size) ) != CTDBRET_OK )
@@ -213,6 +221,19 @@ rb_ct_date_to_date(VALUE self)
     return rb_date;
 }
 
+/*
+ *
+ */
+static VALUE
+rb_ct_date_to_i(VALUE self)
+{
+    ct_date *date;
+
+    GetCTDate(self, date);
+
+    return INT2FIX(date->value);
+}
+
 void
 init_rb_ct_date()
 {
@@ -225,6 +246,7 @@ init_rb_ct_date()
     rb_define_method(cCTDate, "month", rb_ct_date_get_month, 0);
     rb_define_method(cCTDate, "year", rb_ct_date_get_year, 0);
     rb_define_method(cCTDate, "to_date", rb_ct_date_to_date, 0);
+    rb_define_method(cCTDate, "to_i", rb_ct_date_to_i, 0);
     /*rb_define_method(cCTDate, "leap_year?", rb_ct_date_is_leap_year, 0);*/
     /*rb_define_method(cCTDate, "day_of_week", rb_ct_date_get_day_of_week, 0);*/
 }

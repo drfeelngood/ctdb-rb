@@ -122,23 +122,13 @@ class TestQuery < Test::Unit::TestCase
     end
   end
 
-  #def test_all
-    #collection = @query.all
+  def test_all
+    collection = @query.all
     
-    #assert_instance_of(Array, collection)
-    #collection.each_with_index do |record, n|
-      #assert_equal(n+1, record.get_field('uinteger'))
-    #end
-  #end
-
-  #def test_filter
-    #x = fixtures[1]
-
-    #@record = @query.filter("strncmp(varchar, \"#{x['varchar']}\", " +
-      #"#{x['varchar'].length + 1}) == 0").set
-
-    #assert_instance_of(CT::Record, @record)
-    #assert_equal(2, @record.get_field('uinteger'))
-  #end
+    assert_instance_of(Array, collection)
+    collection.each_with_index do |record, n|
+      assert_equal(n+1, record.get_field('uinteger'))
+    end
+  end
 
 end

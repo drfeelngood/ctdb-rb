@@ -3,6 +3,7 @@
 
 void init_rb_ct_time();
 void free_rb_ct_time(void *ptr);
+VALUE ct_time_init_with(pCTTIME tm);
 
 typedef struct {
     CTTIME value;
@@ -10,5 +11,7 @@ typedef struct {
 } ct_time;
 
 #define GetCTTime(obj, val) ( val = (ct_time*)DATA_PTR(obj) );
+
+VALUE ct_time_init_with(pCTTIME tm);
 
 #endif

@@ -9,7 +9,7 @@ module CT
       self.type == CT::CHARS || self.type == CT::FPSTRING || 
           self.type == CT::F2STRING || self.type == CT::F4STRING ||
           self.type == CT::PSTRING || self.type == CT::VARCHAR ||
-          self.type == CT::LVB
+          self.type == CT::LVB || self.type == CT::VARBINARY
     end
 
     def integer?

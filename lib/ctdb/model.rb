@@ -202,7 +202,7 @@ module CT
 
       @attributes.each do |field_name, _|
         begin
-          write_attribute(field_name, ct_record.get_field(field_name))
+          write_attribute(field_name, ct_record.get_field(field_name)) 
         rescue NotImplementedError => e
           warn(e.message)
         end
