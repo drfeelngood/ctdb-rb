@@ -192,11 +192,11 @@ module CT
       cursor
     end
 
-    #def all
-      #[].tap do |records|
-        #each { |_record_| records << _record_ } 
-      #end
-    #end
+    def all
+      [].tap do |objects|
+        each { |obj| objects << obj } 
+      end
+    end
 
     # @!endgroup
     
@@ -299,16 +299,6 @@ module CT
         }
           raise InvalidQuery.new("Index segments supplied are out of the " +
                                  "scope of `#{@options[:index]}'")
-        end
-      end
-
-      def perform
-        mode = case options[:find_mode]
-        when :eq then CT::FIND_EQ
-        end
-
-        unless mode.nil?
-          record.find(mode)
         end
       end
 
