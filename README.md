@@ -89,22 +89,24 @@ CT::Model.session = { engine: "FAIRCOMS", username: "", password: "" }
 foo = Foo.find(index: :foo_ndx).index_segments(bar: 1234, sequence: 2).eq
 ```
 
-## Query Interface
+## CT::Query
 
-*Find Modes*:
-* eq
-* set
-* lt
-* lte
-* gt
-* gte
+Interface to perform record queries.
 
+#### Options
+
+* index
+* index_segments
+* limit
+* offset
+* filter
+* transformer
 
 ```ruby
-foo = Foo.where(bar: 1234, sequence: 2)
+record = CT::Query.new(table).index(:bar_ndx).index_segments(sequence: 5).eq
 ```
 
-### Contributing
+## Contributing
 
 * Fork the project
 * Create a topic branch
