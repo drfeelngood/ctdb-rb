@@ -1,20 +1,12 @@
 require 'mkmf'
 
-#def osx?
-  #!!(RUBY_PLATFORM =~ /darwin/)
-#end
-
-#def linux?
-  #!!(RUBY_PLATFORM =~ /linux/)
-#end
-
 if enable_config("debug")
   $defs.push("-DDEBUG")
 end
 
 errors = []
 errors << "'ctdbsdk.h'" unless find_header('ctdbsdk.h')
-errors << "'mtclient'"  unless find_library('mtclient', 'ctdbAllocSession')
+errors << "'ctclient'"  unless find_library('ctclient', 'ctdbAllocSession')
 
 unless errors.empty?
   puts "Error: missing dependencies: #{errors.join(',')}"
