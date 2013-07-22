@@ -26,6 +26,19 @@ ct_date_init_with(pCTDATE dt)
     return obj;
 }
 
+VALUE
+ct_date_init_with2(pCTDATE dt, CTDATE_TYPE type)
+{
+  ct_date *date;
+  VALUE obj;
+
+  obj = Data_Make_Struct(cCTDate, ct_date, 0, free_rb_ct_date, date); 
+  date->value = (CTDATE)*dt;
+  date->type  = type; 
+
+  return obj;
+}
+
 /*
  * Create a new instance of CT::Date 
  *

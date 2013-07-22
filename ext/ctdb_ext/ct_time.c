@@ -21,7 +21,21 @@ ct_time_init_with(pCTTIME tm)
 
     obj = Data_Make_Struct(cCTTime, ct_time, 0, free_rb_ct_time, time);
     time->value = (CTTIME)*tm;
+    time->type = CTTIME_HHMS;
+    
+    return obj;
+}
 
+VALUE 
+ct_time_init_with2(pCTTIME tm, CTTIME_TYPE type)
+{
+    ct_time *time;
+    VALUE obj;
+
+    obj = Data_Make_Struct(cCTTime, ct_time, 0, free_rb_ct_time, time);
+    time->value = (CTTIME)*tm;
+    time->type  = type;
+    
     return obj;
 }
 
@@ -85,7 +99,7 @@ rb_ct_time_to_string(VALUE self)
     TEXT str;
 
     GetCTTime(self, time);
-
+    
     switch ( time->type ) {
       case CTTIME_HMSP :
           format = (char *)"%I:%M:%S %P";

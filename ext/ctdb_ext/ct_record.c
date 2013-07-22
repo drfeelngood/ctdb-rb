@@ -449,7 +449,10 @@ rb_ct_record_get_field_as_date(VALUE self, VALUE id)
         rb_raise(cCTError, "[%d] ctdbGetFieldAsDate failed.",
             ctdbGetError(record->handle));
   
-    return ( ( date > 0 ) ? ct_date_init_with(&date) : Qnil );
+    if ( date > 0 )
+        return ct_date_init_with2(&date, ctdbGetDefDateType(record->handle));
+    else
+        return Qnil;
 }
 
 /*
@@ -494,7 +497,7 @@ rb_ct_record_get_field_as_time(VALUE self, VALUE id)
     if ( rc != CTDBRET_OK )
         rb_raise(cCTError, "[%d] ctdbGetFieldAsTime failed.", rc);
 
-    return ct_time_init_with(&time);
+    return ct_time_init_with2(&time, ctdbGetDefTimeType(record->handle));
 }
 
 /*
