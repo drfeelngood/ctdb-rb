@@ -116,6 +116,18 @@ rb_ct_time_to_string(VALUE self)
       case CTTIME_MIL :
           format = (char *)"%H%M";
           break;
+      case CTTIME_HHMSP :
+          format = (char *)"%H:%M:%S %P";
+          break;
+      case CTTIME_HHMP :
+          format = (char *)"%H:%M %P";
+          break;
+      case CTTIME_HHMS :
+          format = (char *)"%H:%M:%S";
+          break;
+      case CTTIME_HHM :
+          format = (char *)"%H:%M";
+          break;
       default :
           rb_raise(cCTError, "Unknown CT::Time format.");
           break;
@@ -177,21 +189,48 @@ rb_ct_time_unpack(VALUE self)
 static VALUE
 rb_ct_time_get_hour(VALUE self)
 {
-    return rb_ary_entry(RSEND(self, "unpack"), INT2FIX(0));
+    ct_time *time;
+    NINT h, m, s;
+    CTDBRET rc;
+
+    GetCTTime(self, time);
+
+    if ( ( rc = ctdbTimeUnpack(time->value, &h, &m, &s) ) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbTimeUnpack failed.", rc);
+
+    return INT2FIX(h);
+    
 }
 
 static VALUE
 rb_ct_time_get_min(VALUE self)
 {
-    return rb_ary_entry(RSEND(self, "unpack"), INT2FIX(1));
+    ct_time *time;
+    NINT h, m, s;
+    CTDBRET rc;
+
+    GetCTTime(self, time);
+
+    if ( ( rc = ctdbTimeUnpack(time->value, &h, &m, &s) ) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbTimeUnpack failed.", rc);
+
+    return INT2FIX(m);
 }
 
 static VALUE
 rb_ct_time_get_sec(VALUE self)
 {
-    return rb_ary_entry(RSEND(self, "unpack"), INT2FIX(2));
-}
+    ct_time *time;
+    NINT h, m, s;
+    CTDBRET rc;
 
+    GetCTTime(self, time);
+
+    if ( ( rc = ctdbTimeUnpack(time->value, &h, &m, &s) ) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbTimeUnpack failed.", rc);
+
+    return INT2FIX(s);
+}
 
 void
 init_rb_ct_time()

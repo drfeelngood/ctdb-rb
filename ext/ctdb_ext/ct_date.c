@@ -256,7 +256,7 @@ init_rb_ct_date()
     rb_define_singleton_method(cCTDate, "today", rb_ct_date_get_current_date, 0);
     rb_define_method(cCTDate, "to_s", rb_ct_date_to_string, 0);
     rb_define_method(cCTDate, "day",  rb_ct_date_get_day, 0);
-    rb_define_method(cCTDate, "month", rb_ct_date_get_month, 0);
+    rb_define_method(cCTDate, "mon", rb_ct_date_get_month, 0);
     rb_define_method(cCTDate, "year", rb_ct_date_get_year, 0);
     rb_define_method(cCTDate, "to_date", rb_ct_date_to_date, 0);
     rb_define_method(cCTDate, "to_i", rb_ct_date_to_i, 0);

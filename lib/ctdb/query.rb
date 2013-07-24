@@ -125,9 +125,7 @@ module CT
       end if options[:index_segments]
       
       set_on(bytes)
-      first
-      
-      cursor
+      self
     end
   
     # Find a record greater than the current record target

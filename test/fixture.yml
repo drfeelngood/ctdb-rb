@@ -12,7 +12,7 @@
     float: 2.75
     double: 123.45
     timestamp: 2013-07-15T12:45:48-05:00
-    efloat: 999.999
+    #efloat: 999.19
     binary: "1cbe991a14" 
     chars: "foo"
     fpstring: "Y"
@@ -39,7 +39,7 @@
     float: 2.75
     double: 678.71
     timestamp: 2013-07-15T15:49:42-05:00
-    efloat: 9876.5431
+    #efloat: 9876.54
     binary: "cecd0b1"
     chars: "foo bar"
     fpstring: "N"
@@ -66,7 +66,7 @@
     float: 2.75
     double: 543.21
     timestamp: 2013-07-15T15:49:42-05:00
-    efloat: 55.55
+    #efloat: 55.55
     binary: "7b43521ebac21"
     chars: "hello world"
     fpstring: "Y"

@@ -12,7 +12,7 @@ class TestCTDate < Test::Unit::TestCase
       @date = CT::Date.new(@year, @month, @day)
     end
     assert_instance_of(CT::Date, @date)
-    assert_equal(@month, @date.month)
+    assert_equal(@month, @date.mon)
     assert_equal(@day,   @date.day)
     assert_equal(@year,  @date.year)
   end
@@ -23,7 +23,7 @@ class TestCTDate < Test::Unit::TestCase
       @date = CT::Date.today
     end
     assert_instance_of(CT::Date, @date)
-    assert_equal(rb_date.month, @date.month)
+    assert_equal(rb_date.month, @date.mon)
     assert_equal(rb_date.day,   @date.day)
     assert_equal(rb_date.year,  @date.year)
   end
@@ -50,9 +50,9 @@ class TestCTDate < Test::Unit::TestCase
       @date = @date.to_ctdb
     end
     assert_instance_of(CT::Date, @date)
-    #assert_equal(y, @date.year)
-    #assert_equal(m, @date.mon)
-    #assert_equal(d, @date.day)
+    assert_equal(y, @date.year)
+    assert_equal(m, @date.mon)
+    assert_equal(d, @date.day)
   end
 
 end
@@ -83,7 +83,7 @@ class TestCTTime < Test::Unit::TestCase
 
   def test_unpack
     assert_nothing_raised do
-      @time = CT::Time.now
+      @time = CT::Time.new(@hour, @min, @sec)
     end
     assert_instance_of(CT::Time, @time)
     parts = @time.unpack
@@ -96,7 +96,7 @@ class TestCTTime < Test::Unit::TestCase
 
   def test_hour_min_and_sec
     assert_nothing_raised do
-      @time = CT::Time.now
+      @time = CT::Time.new(@hour, @min, @sec)
     end
     assert_instance_of(CT::Time, @time)
     assert_equal(@hour, @time.hour)

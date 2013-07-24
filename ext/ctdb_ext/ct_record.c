@@ -789,8 +789,7 @@ rb_ct_record_next(VALUE self)
 
     rc = ctdbNextRecord(record->handle);
     if ( rc != CTDBRET_OK && rc != INOT_ERR )
-        rb_raise(cCTError, "[%d] ctdbNextRecord failed.",
-            ctdbGetError(record->handle));
+        rb_raise(cCTError, "[%d] ctdbNextRecord failed.", rc);
 
     return rc == INOT_ERR ? Qnil : self;
 }
@@ -945,7 +944,7 @@ rb_ct_record_duplicate(VALUE self)
    
     obj = Data_Make_Struct(cCTRecord, ct_record, 0, free_rb_ct_record, record_copy);
     record_copy->handle = handle;
-    record_copy->table_ptr = record->table_ptr;
+    record_copy->table_ptr = &(*record->table_ptr);
 
     return obj;
 }
