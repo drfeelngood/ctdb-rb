@@ -28,7 +28,6 @@ class TestCTField < Test::Unit::TestCase
                     type: "CT_UINTEGER" ,
                     length: 4 }, @field.to_h )
 
-
     assert_nothing_raised { @field = @table.get_field_by_name("integer") }
     assert_equal(1, @field.number)
     assert_equal(CT::INTEGER, @field.type)
@@ -104,15 +103,15 @@ class TestCTField < Test::Unit::TestCase
     assert_equal("CT_TIMESTAMP", @field.human_type)
     assert_equal(8, @field.length)
 
-    assert_nothing_raised { @field = @table.get_field_by_name("efloat") }
-    assert_equal(CT::EFLOAT, @field.type)
-    assert_equal("CT_EFLOAT", @field.human_type)
-    assert_equal(16, @field.length)
+    #assert_nothing_raised { @field = @table.get_field_by_name("efloat") }
+    #assert_equal(CT::EFLOAT, @field.type)
+    #assert_equal("CT_EFLOAT", @field.human_type)
+    #assert_equal(16, @field.length)
 
-    #assert_nothing_raised { @field = @table.get_field_by_name("binary") }
-    #assert_equal(CT::BINARY, @field.type)
+    assert_nothing_raised { @field = @table.get_field_by_name("binary") }
+    assert_equal(CT::BINARY, @field.type)
     #assert_equal("BINARY", @field.human_type)
-    #assert_equal(256, @field.length)
+    assert_equal(256, @field.length)
 
     assert_nothing_raised { @field = @table.get_field_by_name("chars") }
     assert_equal(CT::CHARS, @field.type)
@@ -123,19 +122,19 @@ class TestCTField < Test::Unit::TestCase
     assert_nothing_raised { @field = @table.get_field_by_name("fpstring") }
     assert_equal(CT::FPSTRING, @field.type)
     assert_equal("CT_FPSTRING", @field.human_type)
-    assert_equal(1, @field.length)
+    assert_equal(2, @field.length)
     assert(@field.string?)
 
     assert_nothing_raised { @field = @table.get_field_by_name("f2string") }
     assert_equal(CT::F2STRING, @field.type)
     assert_equal("CT_F2STRING", @field.human_type)
-    assert_equal(2, @field.length)
+    assert_equal(4, @field.length)
     assert(@field.string?)
 
     assert_nothing_raised { @field = @table.get_field_by_name("f4string") }
     assert_equal(CT::F4STRING, @field.type)
     assert_equal("CT_F4STRING", @field.human_type)
-    assert_equal(4, @field.length)
+    assert_equal(8, @field.length)
     assert(@field.string?)
 
     assert_nothing_raised { @field = @table.get_field_by_name("bigint") }
@@ -159,11 +158,11 @@ class TestCTField < Test::Unit::TestCase
     assert_equal(1, @field.length)
     assert(@field.string?)
 
-    #assert_nothing_raised { @field = @table.get_field_by_name("varbinary") }
-    #assert_equal(CT::VARBINARY, @field.type)
-    #assert_equal("VARBINARY", @field.human_type)
-    #assert_equal(2, @field.length)
-    #assert(@field.string?)
+    assert_nothing_raised { @field = @table.get_field_by_name("varbinary") }
+    assert_equal(CT::VARBINARY, @field.type)
+    assert_equal("CT_VARBINARY", @field.human_type)
+    assert_equal(2, @field.length)
+    assert(@field.string?)
 
     assert_nothing_raised { @field = @table.get_field_by_name("lvb") }
     assert_equal(CT::LVB, @field.type)
