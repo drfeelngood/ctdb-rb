@@ -142,9 +142,9 @@ rb_ct_index_get_segment(VALUE self, VALUE id)
         return rb_ct_segment_new(cCTSegment, segh);
     
     } else if ( rb_type(id) == T_STRING ) {
-        segments = rb_funcall(self, rb_intern("segments"), 0);
+        segments = RSEND(self, "segments");
         while ( (segment = rb_ary_pop(segments)) ) {
-            name = rb_funcall(segment, rb_intern("field_name"), 0);
+            name = RSEND(segment, "field_name");
             if ( rb_funcall(name, rb_intern("=="), 1, id) == Qtrue )
                 return segment;
         }

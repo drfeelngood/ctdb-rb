@@ -4,24 +4,24 @@
     utinyint: 1
     smallint: 8
     usmallint: 1
-    integer: 0
+    integer: 999
     uinteger: 1
-    money: "1,000.00"
+    money: 10,555.54
     date: 1984-01-10
     time: 2001-12-14 21:59:43.10 -05:00
     float: 2.75
-    double:
-    timestamp:
-    efloat:
-    binary:
+    double: 123.45
+    timestamp: 2013-07-15T12:45:48-05:00
+    #efloat: 999.19
+    binary: "1cbe991a14" 
     chars: "foo"
     fpstring: "Y"
     f2string: "NA"
     f4string: "UNK"
     bigint: 2652295
-    number: 12345
-    currency:
-    pstring: " "
+    number: 1010011 
+    currency: 5000000.00
+    pstring: ""
     varbinary:
     lvb:
     varchar: "I love c extensions!"
@@ -31,23 +31,23 @@
     utinyint: 1
     smallint: 8
     usmallint: 7
-    integer: 0
+    integer: 128
     uinteger: 2
-    money: "1,000.00"
+    money: 1,000.00
     date: 2000-01-01
-    time: 
+    time: 2013-07-15 11:05:15.20 -05:00 
     float: 2.75
-    double:
-    timestamp:
-    efloat:
-    binary:
-    chars: "foo"
+    double: 678.71
+    timestamp: 2013-07-15T15:49:42-05:00
+    #efloat: 9876.54
+    binary: "cecd0b1"
+    chars: "foo bar"
     fpstring: "N"
     f2string: "NA"
     f4string: "YES"
     bigint: 2652295
-    number: 12345
-    currency:
+    number: "\xB3}\xB8\x96\xD0\x00" 
+    currency: 1.0010
     pstring: "Y"
     varbinary:
     lvb:
@@ -58,24 +58,24 @@
     utinyint: 1
     smallint: 8
     usmallint: 7
-    integer: 0
+    integer: 10000
     uinteger: 3
-    money: "1,000.00"
-    date: 
-    time: 
+    money: 1,000.00
+    date: 2013-07-11 
+    time: 1984-01-10 11:57:13.10 -05:00 
     float: 2.75
-    double:
-    timestamp:
-    efloat:
-    binary:
-    chars: "foo"
+    double: 543.21
+    timestamp: 2013-07-15T15:49:42-05:00
+    #efloat: 55.55
+    binary: "7b43521ebac21"
+    chars: "hello world"
     fpstring: "Y"
     f2string: "NA"
     f4string: "UNK"
     bigint: 2652295
-    number: 12345
-    currency:
+    number: "\x12\xD20"
+    currency: 100.0078
     pstring: "N"
-    varbinary:
+    varbinary: "abcdefghijklmnopqrstuvwxyz"
     lvb:
     varchar: "It's yummy beer time."

@@ -49,7 +49,7 @@ class TestQuery < Test::Unit::TestCase
     assert_nothing_raised do
       @record = @query.set
     end
-    assert_instance_of(CT::Record, @record)
+    assert_instance_of(CT::Query, @record)
   end
 
   def test_find_gt
@@ -117,28 +117,20 @@ class TestQuery < Test::Unit::TestCase
   end
 
   def test_each
+    n = 0
     @query.each do |record|
       assert_instance_of(CT::Record, record)
+      assert_equal(n+=1, record.get_field('uinteger'))
     end
   end
 
-  #def test_all
-    #collection = @query.all
+  def test_all
+    collection = @query.all
     
-    #assert_instance_of(Array, collection)
-    #collection.each_with_index do |record, n|
-      #assert_equal(n+1, record.get_field('uinteger'))
+    assert_instance_of(Array, collection)
+    #collection.each do |record|
+      #puts record.get_field("uinteger")
     #end
-  #end
-
-  #def test_filter
-    #x = fixtures[1]
-
-    #@record = @query.filter("strncmp(varchar, \"#{x['varchar']}\", " +
-      #"#{x['varchar'].length + 1}) == 0").set
-
-    #assert_instance_of(CT::Record, @record)
-    #assert_equal(2, @record.get_field('uinteger'))
-  #end
+  end
 
 end

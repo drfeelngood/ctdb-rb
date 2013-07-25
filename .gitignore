@@ -10,3 +10,5 @@ tmp
 doc
 test/*.dat
 test/*.idx
+.ruby-version
+.ruby-gemset

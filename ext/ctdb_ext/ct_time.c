@@ -13,6 +13,32 @@ free_rb_ct_time(void *ptr)
     xfree(time);
 }
 
+VALUE
+ct_time_init_with(pCTTIME tm)
+{
+    ct_time *time;
+    VALUE obj;
+
+    obj = Data_Make_Struct(cCTTime, ct_time, 0, free_rb_ct_time, time);
+    time->value = (CTTIME)*tm;
+    time->type = CTTIME_HHMS;
+    
+    return obj;
+}
+
+VALUE 
+ct_time_init_with2(pCTTIME tm, CTTIME_TYPE type)
+{
+    ct_time *time;
+    VALUE obj;
+
+    obj = Data_Make_Struct(cCTTime, ct_time, 0, free_rb_ct_time, time);
+    time->value = (CTTIME)*tm;
+    time->type  = type;
+    
+    return obj;
+}
+
 /*
  * Create a new instance of CT::Time 
  *
@@ -25,34 +51,22 @@ free_rb_ct_time(void *ptr)
  * @return [CT::Time]
  */
 static VALUE
-rb_ct_time_new(VALUE klass, VALUE year, VALUE month, VALUE day, VALUE hour, 
-        VALUE min, VALUE sec)
+rb_ct_time_new(VALUE klass, VALUE hour, VALUE min, VALUE sec)
 {
-    ct_time *time;
     CTTIME tm;
-    NINT y, m, d, h, i, s;
-    VALUE obj;
+    NINT h, m, s;
 
-    Check_Type(year,  T_FIXNUM);
-    Check_Type(month, T_FIXNUM);
-    Check_Type(day,   T_FIXNUM);
-    Check_Type(hour,  T_FIXNUM);
-    Check_Type(min,   T_FIXNUM);
-    Check_Type(sec,   T_FIXNUM);
+    Check_Type(hour, T_FIXNUM);
+    Check_Type(min,  T_FIXNUM);
+    Check_Type(sec,  T_FIXNUM);
 
-    y = FIX2INT(year);
-    m = FIX2INT(month);
-    d = FIX2INT(day);
     h = FIX2INT(hour);
-    i = FIX2INT(min);
+    m = FIX2INT(min);
     s = FIX2INT(sec);
 
-    ctdbTimePack(&tm, h, i, s);
+    ctdbTimePack(&tm, h, m, s);
     
-    obj = Data_Make_Struct(klass, ct_time, 0, free_rb_ct_time, time); 
-    time->value = tm;
-    
-    return obj;
+    return ct_time_init_with(&tm);
 }
 
 /*
@@ -62,23 +76,13 @@ rb_ct_time_new(VALUE klass, VALUE year, VALUE month, VALUE day, VALUE hour,
 static VALUE
 rb_ct_time_now(VALUE klass)
 {
-    CTDATETIME datetime;
+    CTTIME tm;
     CTDBRET rc;
-    NINT year, month, day, hour, minute, second;
-    VALUE rb_time;
+ 
+    if ( ( rc = ctdbCurrentTime(&tm) ) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbCurrentTime failed.", rc);
 
-    if ( ( rc = ctdbCurrentDateTime(&datetime) ) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbCurrentDateTime failed.", rc);
-
-    if ( ( rc = ctdbDateTimeUnpack(datetime, &year, &month, &day, &hour, &minute, 
-            &second) ) != CTDBRET_OK )
-        rb_raise(cCTError, "[%d] ctdbDateTimeUnpack failed.", rc);
-    
-    rb_time = rb_funcall(RUBY_CLASS("Time"), rb_intern("new"), 6, 
-        INT2FIX(year), INT2FIX(month), INT2FIX(day), INT2FIX(hour), 
-        INT2FIX(minute), INT2FIX(second));
-
-    return rb_time;
+    return ct_time_init_with(&tm);
 }
 
 /*
@@ -95,7 +99,7 @@ rb_ct_time_to_string(VALUE self)
     TEXT str;
 
     GetCTTime(self, time);
-
+    
     switch ( time->type ) {
       case CTTIME_HMSP :
           format = (char *)"%I:%M:%S %P";
@@ -112,6 +116,18 @@ rb_ct_time_to_string(VALUE self)
       case CTTIME_MIL :
           format = (char *)"%H%M";
           break;
+      case CTTIME_HHMSP :
+          format = (char *)"%H:%M:%S %P";
+          break;
+      case CTTIME_HHMP :
+          format = (char *)"%H:%M %P";
+          break;
+      case CTTIME_HHMS :
+          format = (char *)"%H:%M:%S";
+          break;
+      case CTTIME_HHM :
+          format = (char *)"%H:%M";
+          break;
       default :
           rb_raise(cCTError, "Unknown CT::Time format.");
           break;
@@ -127,11 +143,107 @@ rb_ct_time_to_string(VALUE self)
     return rb_str_new_cstr(&str);
 }
 
+static VALUE
+rb_ct_time_to_time(VALUE self)
+{
+    ct_time *time;
+    VALUE parts;
+
+    GetCTTime(self, time);
+
+    parts = RSEND(self, "unpack");
+
+    return rb_funcall( RUBY_CLASS("Time"), rb_intern("new"), 6,
+                       INT2FIX(1970),
+                       INT2FIX(1),
+                       INT2FIX(1),
+                       rb_ary_entry(parts, 0),
+                       rb_ary_entry(parts, 1),
+                       rb_ary_entry(parts, 2) );
+}
+
+/*
+ * @return [Array]
+ */
+static VALUE
+rb_ct_time_unpack(VALUE self)
+{
+    ct_time *time;
+    NINT h, m, s;
+    CTDBRET rc;
+    VALUE vals;
+
+    GetCTTime(self, time);
+
+    if ( ( rc = ctdbTimeUnpack(time->value, &h, &m, &s) ) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbTimeUnpack failed.", rc);
+
+    vals = rb_ary_new2(3);
+    rb_ary_store(vals, 0, INT2FIX(h));
+    rb_ary_store(vals, 1, INT2FIX(m));
+    rb_ary_store(vals, 2, INT2FIX(s));
+
+    return vals;
+}
+
+static VALUE
+rb_ct_time_get_hour(VALUE self)
+{
+    ct_time *time;
+    NINT h, m, s;
+    CTDBRET rc;
+
+    GetCTTime(self, time);
+
+    if ( ( rc = ctdbTimeUnpack(time->value, &h, &m, &s) ) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbTimeUnpack failed.", rc);
+
+    return INT2FIX(h);
+    
+}
+
+static VALUE
+rb_ct_time_get_min(VALUE self)
+{
+    ct_time *time;
+    NINT h, m, s;
+    CTDBRET rc;
+
+    GetCTTime(self, time);
+
+    if ( ( rc = ctdbTimeUnpack(time->value, &h, &m, &s) ) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbTimeUnpack failed.", rc);
+
+    return INT2FIX(m);
+}
+
+static VALUE
+rb_ct_time_get_sec(VALUE self)
+{
+    ct_time *time;
+    NINT h, m, s;
+    CTDBRET rc;
+
+    GetCTTime(self, time);
+
+    if ( ( rc = ctdbTimeUnpack(time->value, &h, &m, &s) ) != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbTimeUnpack failed.", rc);
+
+    return INT2FIX(s);
+}
+
 void
 init_rb_ct_time()
 {
     cCTTime = rb_define_class_under(mCT, "Time", rb_cObject);
-    rb_define_singleton_method(cCTTime, "new", rb_ct_time_new, 6);
+    
+    rb_define_singleton_method(cCTTime, "new", rb_ct_time_new, 3);
     rb_define_singleton_method(cCTTime, "now", rb_ct_time_now, 0);
+    
     rb_define_method(cCTTime, "to_s", rb_ct_time_to_string, 0);
+    rb_define_method(cCTTime, "to_time", rb_ct_time_to_time, 0);
+    rb_define_method(cCTTime, "unpack", rb_ct_time_unpack, 0);
+    rb_define_method(cCTTime, "hour", rb_ct_time_get_hour, 0);
+    rb_define_method(cCTTime, "min", rb_ct_time_get_min, 0);
+    rb_define_method(cCTTime, "sec", rb_ct_time_get_sec, 0);
 }

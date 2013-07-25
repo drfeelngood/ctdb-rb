@@ -3,7 +3,7 @@ require 'forwardable'
 module CT
   class Model
 
-    module Finders
+    module Querying
       extend Forwardable
 
       def_delegators :query, :each, :all, :first, :last, :count
@@ -12,7 +12,7 @@ module CT
       # @param [Hash] options
       # @see CT::Query
       def query(options={})
-        query = Query.new(table)
+        qry = Query.new(table)
         options[:transformer] ||= begin
           lambda { |ct_record|
             instance = allocate
@@ -20,8 +20,7 @@ module CT
             instance
           }
         end
-        query.merge(options)
-        query
+        qry.merge(options)
       end
 
       # Retrieve a given record or set of records based on the given criteria.
@@ -38,12 +37,15 @@ module CT
         index.segments.each_with_index do |segment, i|
           index_segments[:"#{segment.field_name}"] = values[i]
         end
+        p index_segments
+        puts index_segments.class
         query.index(index_name).index_segments(index_segments)
+        query
       end
 
     end
 
-    extend Finders
+    extend Querying 
 
     @@session_handler = nil unless defined?(@@session_handler)
 
@@ -202,7 +204,7 @@ module CT
 
       @attributes.each do |field_name, _|
         begin
-          write_attribute(field_name, ct_record.get_field(field_name))
+          write_attribute(field_name, ct_record.get_field(field_name)) 
         rescue NotImplementedError => e
           warn(e.message)
         end
@@ -237,7 +239,7 @@ module CT
     # @param [String, #to_s] name
     # @raise [CT::UnknownAttributeError] if the attribute is not defined
     def read_attribute(name)
-      raise CT::UnknownAttributeError.new(name) unless has_attribute?(name)
+      raise CT::UnknownAttribute.new(name) unless has_attribute?(name)
       @attributes[name.to_s]
     end
     alias :[] :read_attribute
@@ -247,7 +249,7 @@ module CT
     # @param [Object] value
     # @raise [CT::UnknownAttributeError] if the attribute is not defined
     def write_attribute(name, value)
-      raise CT::UnknownAttributeError.new(name) unless has_attribute?(name)
+      raise CT::UnknownAttribute.new(name) unless has_attribute?(name)
       name = name.to_s
 
       @attributes[name] = value #value.is_a?(String) ? value.strip : value
@@ -354,7 +356,7 @@ module CT
                       .index_segments(primary_index_segments)
                       .eq
 
-        expire_at = Time.now.to_f + (0.5 * 10)
+        expire_at = ::Time.now.to_f + (0.5 * 10)
         until record.lock(CT::LOCK_WRITE)
           if expire_at > Time.now.to_f
             raise CT::LockTimeoutError.new

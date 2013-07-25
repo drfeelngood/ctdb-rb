@@ -8,3 +8,12 @@ class Date
   end
 
 end
+
+class DateTime
+  
+  def to_ctdb
+    CT::DateTime.new( self.year, self.month, self.day, 
+                      self.hour, self.min, self.sec )
+  end
+
+end

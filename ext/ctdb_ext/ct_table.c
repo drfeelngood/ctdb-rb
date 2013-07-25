@@ -640,7 +640,7 @@ rb_ct_table_set_path(VALUE self, VALUE path)
 static VALUE
 rb_ct_table_get_permission(VALUE self)
 {
-
+    return self;
 }
 
 /*
@@ -653,7 +653,7 @@ rb_ct_table_get_permission(VALUE self)
 static VALUE
 rb_ct_table_set_permission(VALUE self, VALUE pmask)
 {
-
+    return self;
 }
 
 /*
