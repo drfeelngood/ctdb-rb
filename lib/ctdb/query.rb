@@ -45,7 +45,8 @@ module CT
     #include Enumerable
     extend Forwardable
 
-    def_delegator :@record, :set_on?, :record_set?
+    def_delegator :@record, :set?, :record_set?
+    def_delegator :@record, :next, :next_record
 
     def_delegators :@record, :clear, 
                              :find, 
@@ -54,7 +55,6 @@ module CT
                              :default_index, 
                              :default_index=, 
                              :set_on, 
-                             :set_on?, 
                              :set_off,
                              :count
     
@@ -102,19 +102,28 @@ module CT
     # Find a record equal to the current record target
     # @return [CT::Query, nil] The query object or nil if no record is found.
     def eq
-      prepare
-      find(CT::FIND_EQ)
-      
-      cursor
+      eq!
+    rescue CT::RecordNotFound
+      nil
     end
 
     # @see CT::Query#eq
     # @raise [CT::RecordNotFound] if no matching records are found 
     def eq!
-      eq || raise( CT::RecordNotFound.new )
+      prepare
+      find(CT::FIND_EQ)
+      cursor
+    rescue CT::Error # TODO: Should we be specific on the errors we trap?
+      raise CT::RecordNotFound.new
     end
 
     def set
+      set!
+    rescue CT::RecordNotFound
+      nil
+    end
+
+    def set!
       prepare
       
       bytes = 0
@@ -125,7 +134,8 @@ module CT
       end if options[:index_segments]
       
       set_on(bytes)
-      self
+      
+      @record.first.nil? ? raise( CT::RecordNotFound.new ) : self
     end
   
     # Find a record greater than the current record target
@@ -173,19 +183,17 @@ module CT
 
     def last
       prepare
-      record.last
+      @record.last
     
       cursor
     end
 
     def each(&block)
-      record.first
-      
+      @record.first unless record_set? 
+
       begin
         yield( cursor )
-      end while record.next
-      
-      record.first
+      end while next_record 
       
       cursor
     end
@@ -200,7 +208,7 @@ module CT
     
     def cursor
       if record && options[:transformer]
-        options[:transformer].call(record)
+        options[:transformer].call(@record)
       else
         record
       end
