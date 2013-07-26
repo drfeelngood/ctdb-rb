@@ -20,80 +20,46 @@ class TestQuery < Test::Unit::TestCase
   end
 
   def test_options
-    assert_nothing_raised do
-      @query.index(:"#{_c[:index_name]}")
-    end
+    assert_nothing_raised { @query.index(:"#{_c[:index_name]}") }
     assert_equal(@query.options[:index], :"#{_c[:index_name]}")
-    assert_nothing_raised do
-      @query.index_segments(:uinteger => 1) 
-    end
-    assert_equal(@query.options[:index_segments], { :uinteger => 1 })
+    assert_nothing_raised { @query.index_segments(uinteger: 1) } 
+    assert_equal(@query.options[:index_segments], { uinteger: 1 })
   end
 
   def test_find_eq
-    @record = @query.index(:"#{_c[:index_name]}")
-                    .index_segments(:uinteger => 1)
-                    .eq
-    assert_instance_of(CT::Record, @record)
+    assert_instance_of(CT::Record, primary_index_query(1).eq)
+    assert_nil(primary_index_query(999).eq)
+    assert_nothing_raised { primary_index_query(1).eq! }
+    assert_raise(CT::RecordNotFound) { primary_index_query(999).eq! }
   end
-
-  def test_find_eq!
-    assert_nothing_raised do
-      @query.index(:"#{_c[:index_name]}")
-            .index_segments(:uinteger => 1)
-            .eq!
-    end
-  end
-
+  
   def test_find_set
-    assert_nothing_raised do
-      @record = @query.set
-    end
-    assert_instance_of(CT::Query, @record)
+    assert_instance_of(CT::Query, filter_query("foo").set) 
+    assert_nil(filter_query("bar").set)
+    assert_nothing_raised { filter_query("foo").set! }
+    assert_raise(CT::RecordNotFound) { filter_query("bar").set! }
   end
 
   def test_find_gt
-    assert_nothing_raised do
-      @record = @query.index(:"#{_c[:index_name]}")
-                      .index_segments(:uinteger => 2)
-                      .gt
-    end
-    assert_instance_of(CT::Record, @record)
-    assert(@record.get_field('uinteger') > 2)
+    assert_instance_of(CT::Record, ( @record = primary_index_query(2).gt ) )
+    assert_equal(3, @record.get_field('uinteger'))
   end
 
   def test_find_ge
-    assert_nothing_raised do
-      @record = @query.index(:"#{_c[:index_name]}")
-                      .index_segments(:uinteger => 2)
-                      .ge
-    end
-    assert_instance_of(CT::Record, @record)
+    assert_instance_of(CT::Record, ( @record = primary_index_query(2).ge ) )
     assert_equal(2, @record.get_field('uinteger'))
-
     assert_not_nil(@record.next)
     assert_equal(3, @record.get_field('uinteger'))
   end
 
   def test_find_lt
-    assert_nothing_raised do
-      @record = @query.index(:"#{_c[:index_name]}")
-                      .index_segments(:uinteger => 2)
-                      .lt
-    end
-    assert_instance_of(CT::Record, @record)
+    assert_instance_of(CT::Record, ( @record = primary_index_query(2).lt ) )
     assert_equal(1, @record.get_field('uinteger'))
   end
 
   def test_find_le
-    assert_nothing_raised do
-      @record = @query.index(:"#{_c[:index_name]}")
-                      .index_segments(:uinteger => 2)
-                      .le
-    end
-    assert_instance_of(CT::Record, @record)
+    assert_instance_of(CT::Record, ( @record = primary_index_query(2).le ) )
     assert_equal(2, @record.get_field('uinteger'))
-
     assert_not_nil(@record.prev)
     assert_equal(1, @record.get_field('uinteger'))
   end
@@ -124,6 +90,13 @@ class TestQuery < Test::Unit::TestCase
     end
   end
 
+  def test_each_on_empty_set
+    assert_nothing_raised do
+      @record = @query.filter(%Q[fpstring == 'X']).set
+    end
+    assert_nil(@record)
+  end
+
   def test_all
     collection = @query.all
     
@@ -132,5 +105,15 @@ class TestQuery < Test::Unit::TestCase
       #puts record.get_field("uinteger")
     #end
   end
+
+  private
+
+    def primary_index_query(uinteger)
+      @query.index(:"#{_c[:index_name]}").index_segments(uinteger: uinteger)
+    end
+
+    def filter_query(chars)
+      @query.filter(%Q[strncmp(chars, "#{chars}", 3) == 0])
+    end
 
 end
