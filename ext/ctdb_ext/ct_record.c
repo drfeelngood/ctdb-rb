@@ -1254,7 +1254,7 @@ rb_ct_record_set_field_as_string(VALUE self, VALUE id, VALUE value)
         // Pad string to the fixed length.
         len = ctdbGetFieldLength(f);
         // TODO: Implement dynamic field padding with ctdbGetPadChar(*ct->table_ptr, &padc, &delimc);
-        while(RSTRING_LEN(value) < len)
+        while(RSTRING_LEN(value) < len-1)
             rb_str_cat2(value, " ");
 
     } 
