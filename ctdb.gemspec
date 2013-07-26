@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/lib/ctdb/version'
+require File.expand_path('../lib/ctdb/version', __FILE__)
 
 Gem::Specification.new do |s|
   s.name     = "ctdb"
@@ -7,17 +7,14 @@ Gem::Specification.new do |s|
   s.description = "No fluff c extension implementing the ctdb sdk."
   s.homepage = "https://github.com/drfeelngood/ctdb-rb"
   s.email    = "dan@dj-agiledev.com"
+  s.license  = "MIT"
 
-  s.authors = [ "Daniel Johnston" ]
+  s.authors  = [ "Daniel Johnston" ]
 
-  s.files       = Dir['lib/**/*.rb'] + 
-                  Dir['ext/ctdb_ext/*.{h,c,rb}']
-
-  s.executables << 'ctdb'
-  s.test_files  = Dir['test/*.rb']
-
+  s.files       = `git ls-files README.md LICENSE ext lib`.split 
+  s.test_files  = `git ls-files test`.split 
   s.extensions  = [ 'ext/ctdb_ext/extconf.rb' ]
-
+  s.executables << 'ctdb'
 
   s.add_dependency "thor"
 end
