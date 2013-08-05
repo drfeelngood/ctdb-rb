@@ -247,6 +247,16 @@ rb_ct_date_to_i(VALUE self)
     return INT2FIX(date->value);
 }
 
+static VALUE
+rb_ct_date_get_type(VALUE self)
+{
+    ct_date *date;
+
+    GetCTDate(self, date);
+
+    return INT2NUM(date->type);
+}
+
 void
 init_rb_ct_date()
 {
@@ -260,6 +270,7 @@ init_rb_ct_date()
     rb_define_method(cCTDate, "year", rb_ct_date_get_year, 0);
     rb_define_method(cCTDate, "to_date", rb_ct_date_to_date, 0);
     rb_define_method(cCTDate, "to_i", rb_ct_date_to_i, 0);
+    rb_define_method(cCTDate, "type", rb_ct_date_get_type, 0);
     /*rb_define_method(cCTDate, "leap_year?", rb_ct_date_is_leap_year, 0);*/
     /*rb_define_method(cCTDate, "day_of_week", rb_ct_date_get_day_of_week, 0);*/
 }

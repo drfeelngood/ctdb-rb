@@ -271,6 +271,15 @@ module CT
       self
     end
 
+    def inspect
+      inspection = []
+      inspection << "primary_index: \"#{primary_index[:name]}\""
+      inspection << "index_segments: #{primary_index_segments}"
+      inspection << "@attributes=#{@attributes}"
+      inspection << "@dirty_attributes=#{@dirty_attributes}"
+      "#<#{self.class.name} #{inspection * ', '}>"
+    end
+
     private
 
       def initialize_internals
