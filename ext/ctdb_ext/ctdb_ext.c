@@ -132,6 +132,19 @@ Init_ctdb_ext(void)
     rb_define_const(mCT, "DB_REBUILD_ALL",      INT2NUM(CTDB_REBUILD_ALL));
     rb_define_const(mCT, "DB_REBUILD_FULL",     INT2NUM(CTDB_REBUILD_FULL));
 
+    // c-treeDB date and time types
+    rb_define_const(mCT, "DATE_MDCY", INT2NUM(CTDATE_MDCY));
+    rb_define_const(mCT, "DATE_MDY",  INT2NUM(CTDATE_MDY));
+    rb_define_const(mCT, "DATE_DMCY", INT2NUM(CTDATE_DMCY));
+    rb_define_const(mCT, "DATE_DMY",  INT2NUM(CTDATE_DMY));
+    rb_define_const(mCT, "DATE_CYMD", INT2NUM(CTDATE_CYMD));
+    rb_define_const(mCT, "DATE_YMD",  INT2NUM(CTDATE_YMD));
+    rb_define_const(mCT, "TIME_HMSP", INT2NUM(CTTIME_HMSP));
+    rb_define_const(mCT, "TIME_HMP",  INT2NUM(CTTIME_HMP));
+    rb_define_const(mCT, "TIME_HMS",  INT2NUM(CTTIME_HMS));
+    rb_define_const(mCT, "TIME_HM",   INT2NUM(CTTIME_HM));
+    rb_define_const(mCT, "TIME_MIL",  INT2NUM(CTTIME_MIL));
+
     init_rb_ct_session();
     init_rb_ct_table();
     init_rb_ct_field();
@@ -140,4 +153,5 @@ Init_ctdb_ext(void)
     init_rb_ct_record();
     init_rb_ct_date();
     init_rb_ct_time();
+    init_rb_ct_date_time();
 }

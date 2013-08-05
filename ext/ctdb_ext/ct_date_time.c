@@ -22,7 +22,25 @@ ct_date_time_init_with(pCTDATETIME dttm)
     obj = Data_Make_Struct(cCTDateTime, ct_date_time, 0, free_rb_ct_date_time,
                            datetime);
     datetime->value = (CTDATETIME)*dttm;
+    datetime->date_type = CTDATE_MDCY;
+    datetime->time_type = CTTIME_HHMS;
 
+    return obj;
+}
+
+VALUE
+ct_date_time_init_with2(pCTDATETIME dttm, CTDATE_TYPE date_type, 
+                        CTTIME_TYPE time_type)
+{
+    ct_date_time *datetime;
+    VALUE obj;
+
+    obj = Data_Make_Struct(cCTDateTime, ct_date_time, 0, free_rb_ct_date_time,
+                           datetime);
+    datetime->value = (CTDATETIME)*dttm;
+    datetime->date_type = date_type;
+    datetime->time_type = time_type;
+    
     return obj;
 }
 

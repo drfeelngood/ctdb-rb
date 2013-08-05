@@ -475,7 +475,12 @@ rb_ct_record_get_field_as_date_time(VALUE self, VALUE id)
     if ( rc != CTDBRET_OK )
         rb_raise(cCTError, "[%d] ctdbGetFieldAsDateTime failed.", rc);
 
-    return ( ( datetime > 0 ) ? ct_date_time_init_with(&datetime) : Qnil );
+    if ( datetime > 0 )
+        return ct_date_time_init_with2(&datetime, 
+                                       ctdbGetDefDateType(record->handle),
+                                       ctdbGetDefTimeType(record->handle));
+    else
+        return Qnil;
 }
 
 /*
@@ -1117,7 +1122,7 @@ rb_ct_record_set_field_as_date(VALUE self, VALUE id, VALUE value)
                 ctdbGetError(record->handle), RSTRING_PTR(id));
     } else {
         y = FIX2INT(RSEND(value, "year"));
-        m = FIX2INT(RSEND(value, "month"));
+        m = FIX2INT(RSEND(value, "mon"));
         d = FIX2INT(RSEND(value, "day"));
 
         if ( ctdbDateCheck(y, m, d) != CTDBRET_OK )
