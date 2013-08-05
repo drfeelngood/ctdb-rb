@@ -1,5 +1,12 @@
 #!/bin/bash
 
+ps -e|grep ctreesql|grep -v grep >/dev/null
+if [ $? -ne 0 ]
+then
+    echo "ERROR: ctreesql server is not running"
+    exit 1
+fi
+
 rm test_ctdb_rb.*
 ruby test_ct_data_types.rb
 ruby test_ct_session.rb

@@ -232,6 +232,16 @@ rb_ct_time_get_sec(VALUE self)
     return INT2FIX(s);
 }
 
+static VALUE
+rb_ct_time_get_type(VALUE self)
+{
+    ct_time *time;
+
+    GetCTTime(self, time);
+
+    return INT2NUM(time->type);
+}
+
 void
 init_rb_ct_time()
 {
@@ -246,4 +256,5 @@ init_rb_ct_time()
     rb_define_method(cCTTime, "hour", rb_ct_time_get_hour, 0);
     rb_define_method(cCTTime, "min", rb_ct_time_get_min, 0);
     rb_define_method(cCTTime, "sec", rb_ct_time_get_sec, 0);
+    rb_define_method(cCTTime, "type", rb_ct_time_get_type, 0);
 }
