@@ -668,7 +668,7 @@ rb_ct_record_get_lock_mode(VALUE self)
 
     GetCTRecord(self, record);
     
-    return INT2FIX(ctdbGetRecordLock(record->handle));
+    return INT2NUM(ctdbGetRecordLock(record->handle));
 }
 
 /*
@@ -1473,7 +1473,7 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "get_field_as_string", rb_ct_record_get_field_as_string, 1);
     rb_define_method(cCTRecord, "get_field_as_time", rb_ct_record_get_field_as_time, 1);
     rb_define_method(cCTRecord, "get_field_as_unsigned", rb_ct_record_get_field_as_unsigned, 1);
-    rb_define_method(cCTRecord, "get_lock_mode", rb_ct_record_get_lock_mode, 0);
+    rb_define_method(cCTRecord, "lock_mode", rb_ct_record_get_lock_mode, 0);
     rb_define_method(cCTRecord, "last", rb_ct_record_last, 0);
     rb_define_method(cCTRecord, "last!", rb_ct_record_last_bang, 0);
     rb_define_method(cCTRecord, "lock", rb_ct_record_lock, 1);
