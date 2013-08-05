@@ -275,6 +275,7 @@ module CT
       inspection = []
       inspection << "primary_index: \"#{primary_index[:name]}\""
       inspection << "index_segments: #{primary_index_segments}"
+      inspection << "@new_record=\"#{@new_record}\""
       inspection << "@attributes=#{@attributes}"
       inspection << "@dirty_attributes=#{@dirty_attributes}"
       "#<#{self.class.name} #{inspection * ', '}>"
@@ -365,24 +366,17 @@ module CT
                       .index_segments(primary_index_segments)
                       .eq
 
-        expire_at = ::Time.now.to_f + (0.5 * 10)
-        until record.lock(CT::LOCK_WRITE)
-          if expire_at > Time.now.to_f
-            raise CT::LockTimeoutError.new
+        record.with_write_lock! do
+          @dirty_attributes.each do |key, _|
+            begin
+              record.set_field(key, @attributes[key])
+            rescue NotImplementedError => e
+              warn(e.message)
+            end
           end
-          sleep(0.5)
-          next
+          record.write!
         end
 
-        @dirty_attributes.each do |key, _|
-          begin
-            record.set_field(key, @attributes[key])
-          rescue NotImplementedError => e
-            warn(e.message)
-          end
-        end
-        record.write
-        record.lock(CT::LOCK_FREE)
         @new_record, @dirty_attributes = false, {}
         return true
       end
