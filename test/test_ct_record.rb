@@ -200,4 +200,25 @@ class TestCTRecord < Test::Unit::TestCase
     #assert_nothing_raised { @r.clear }
   #end
 
+  def test_record_locking
+    assert_nothing_raised { @r = CT::Record.new(@table) }
+    assert_nothing_raised { @r.clear }
+    assert_nothing_raised { @r.first }
+    assert_equal(CT::LOCK_FREE, @r.lock_mode)
+    assert_equal("CTLOCK_FREE", @r.human_lock_mode)
+    assert_equal(false, @r.locked?)
+    assert(@r.lock(CT::LOCK_READ))
+    assert_equal(CT::LOCK_READ, @r.lock_mode)
+    assert_equal("CTLOCK_READ", @r.human_lock_mode)
+    assert(@r.locked?)
+    assert(@r.read_locked?)
+    assert_equal(false, @r.write_locked?)
+    assert(@r.lock(CT::LOCK_WRITE))
+    assert_equal(CT::LOCK_WRITE, @r.lock_mode)
+    assert_equal("CTLOCK_WRITE", @r.human_lock_mode)
+    assert(@r.locked?)
+    assert(@r.write_locked?)
+    assert_equal(false, @r.read_locked?)
+  end
+
 end
