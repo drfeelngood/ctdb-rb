@@ -10,13 +10,7 @@ extern VALUE cCTDate;
 extern VALUE cCTTime;
 extern VALUE cCTDateTime;
 
-/*
- *
- * @param [ct_record] *record Pointer to the record.
- * @param [Fixnum, String] id The field number or name.
- * @return [Boolean]
- * @raise [CT::Error] ctdbGetFieldAsBool failed.
- */
+// Helper function for retrieving the field number by field name or id.
 static NINT
 get_field_number(ct_record *record, VALUE id)
 {
@@ -40,21 +34,20 @@ get_field_number(ct_record *record, VALUE id)
     return field_number;
 }
 
+// Helper function for checking is a field is null  
+CTBOOL
+ctdb_record_is_field_null(pCTHANDLE record_ptr, NINT field_num)
+{
+    return ctdbIsNullField(record_ptr, field_num);
+}
+
 static void
 free_rb_ct_record(void *ptr)
 {
     ct_record *record = (ct_record *)ptr;
 
-    /*
-     *ctdbFreeRecord(record->handle);
-     */
+    // BUG: ctdbFreeRecord(record->handle); causes segfault.
     xfree(record);
-}
-
-CTBOOL
-ctdb_record_is_field_null(pCTHANDLE record_ptr, NINT field_num)
-{
-    return ctdbIsNullField(record_ptr, field_num);
 }
 
 VALUE
@@ -325,10 +318,6 @@ rb_ct_record_first_bang(VALUE self)
     return self;
 }
 
-/*
- *
- *
- */
 static VALUE
 rb_ct_record_get_field(VALUE self, VALUE field_name)
 {
@@ -352,21 +341,33 @@ rb_ct_record_get_field(VALUE self, VALUE field_name)
 
     switch(field_type){
         case CT_BOOL :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_bool"), 1, field_name);
+            rb_value = rb_funcall( self, 
+                                   rb_intern("get_field_as_bool"), 
+                                   1, 
+                                   field_name );
             break;
          case CT_TINYINT :
          case CT_SMALLINT :
          case CT_INTEGER :
          case CT_BIGINT :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_signed"), 1, field_name);
+            rb_value = rb_funcall( self, 
+                                   rb_intern("get_field_as_signed"), 
+                                   1, 
+                                   field_name );
             break;
         case CT_UTINYINT :
         case CT_USMALLINT :
         case CT_UINTEGER :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_unsigned"), 1, field_name);
+            rb_value = rb_funcall( self, 
+                                   rb_intern("get_field_as_unsigned"), 
+                                   1, 
+                                   field_name );
             break;
         case CT_NUMBER :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_number"), 1, field_name);
+            rb_value = rb_funcall( self, 
+                                   rb_intern("get_field_as_number"), 
+                                   1, 
+                                   field_name );
             break;
         case CT_CHARS :
         case CT_FPSTRING :
@@ -376,23 +377,38 @@ rb_ct_record_get_field(VALUE self, VALUE field_name)
         case CT_VARBINARY :
         case CT_LVB :
         case CT_VARCHAR :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_string"), 1, field_name);
+            rb_value = rb_funcall( self, 
+                                   rb_intern("get_field_as_string"), 
+                                   1, 
+                                   field_name );
             break;
         case CT_DATE :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_date"), 1, field_name);
+            rb_value = rb_funcall( self, 
+                                   rb_intern("get_field_as_date"), 
+                                   1, 
+                                   field_name );
             break;
         case CT_FLOAT :
         case CT_EFLOAT :
         case CT_DOUBLE :
         case CT_MONEY :
         case CT_CURRENCY :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_float"), 1, field_name);
+            rb_value = rb_funcall( self, 
+                                   rb_intern("get_field_as_float"), 
+                                   1, 
+                                   field_name );
             break;
         case CT_TIME :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_time"), 1, field_name);
+            rb_value = rb_funcall( self, 
+                                   rb_intern("get_field_as_time"), 
+                                   1, 
+                                   field_name );
             break;
         case CT_TIMESTAMP :
-            rb_value = rb_funcall(self, rb_intern("get_field_as_date_time"), 1, field_name);
+            rb_value = rb_funcall( self, 
+                                   rb_intern("get_field_as_date_time"), 
+                                   1, 
+                                   field_name );
             break;
         default:
             rb_raise(rb_eNotImpError, "Unhandled field type for `%s'",
@@ -404,8 +420,6 @@ rb_ct_record_get_field(VALUE self, VALUE field_name)
 }
 
 /*
- *
- * 
  * @param [Fixnum, String] id The field number or name.
  * @return [Boolean]
  * @raise [CT::Error] ctdbGetFieldAsBool failed.
@@ -429,8 +443,6 @@ rb_ct_record_get_field_as_bool(VALUE self, VALUE id)
 }
 
 /*
- *
- *
  * @param [Fixnum, String] id The field number or name.
  * @return [Date]
  */
@@ -570,22 +582,26 @@ rb_ct_record_get_field_as_number(VALUE self, VALUE id)
 {
     ct_record *record;
     NINT field_number;
+    CTDBRET rc;
+    CTBIGINT i;
     CTNUMBER value;
-    CTFLOAT float_value;
 
     GetCTRecord(self, record);
 
     field_number = get_field_number(record, id);
 
-    if ( ctdb_record_is_field_null(record->handle, field_number) == YES ) return Qnil;
+    if ( ctdb_record_is_field_null(record->handle, field_number) == YES ) 
+        return Qnil;
 
     if ( ctdbGetFieldAsNumber(record->handle, field_number, &value) != CTDBRET_OK )
         rb_raise(cCTError, "[%d] ctdbGetFieldAsNumber failed for `%s'.",
             ctdbGetError(record->handle), RSTRING_PTR(id));
 
-    ctdbNumberToFloat(&value, &float_value);
+    rc = ctdbNumberToBigInt(&value, &i); 
+    if ( rc != CTDBRET_OK )  
+        rb_raise(cCTError, "[%d] ctdbNumberToBigint failed.", rc);
 
-    return rb_float_new(float_value);
+    return INT2NUM(&i);
 }
 
 /*
@@ -632,7 +648,6 @@ rb_ct_record_get_field_as_string(VALUE self, VALUE id)
 }
 
 /*
- *
  * @param [Fixnum, String] id The field number or name.
  * @return [Fixnum]
  * @raise [CT::Error] ctdbGetFieldAsUnsigned failed.
@@ -659,6 +674,7 @@ rb_ct_record_get_field_as_unsigned(VALUE self, VALUE id)
 
 /*
  * Retrieve the CT::Record lock status.
+ *
  * @return [Symbol, nil]
  */
 static VALUE
@@ -753,7 +769,7 @@ rb_ct_record_is_locked(VALUE self)
     return ((ctdbGetRecordLock(record->handle) != CTLOCK_FREE) ? Qtrue : Qfalse);
 }
 
-/*
+/* 
  * Has CT::Record#lock(CT::LOCK_WRITE) been executed
  */
 static VALUE
@@ -766,8 +782,8 @@ rb_ct_record_is_write_locked(VALUE self)
     return ((ctdbGetRecordLock(record->handle) == CTLOCK_WRITE) ? Qtrue : Qfalse);
 }
 
-/*
- * Has CT::Record#lock(CT::LOCK_READ) been executed
+/*  
+ *  Has CT::Record#lock(CT::LOCK_READ) been executed
  */
 static VALUE
 rb_ct_record_is_read_locked(VALUE self)
@@ -779,7 +795,7 @@ rb_ct_record_is_read_locked(VALUE self)
     return ((ctdbGetRecordLock(record->handle) == CTLOCK_READ) ? Qtrue : Qfalse);
 }
 
-/*
+/* 
  * Get the next record on a table.
  *
  * @return [CT::Record, nil]
@@ -799,6 +815,11 @@ rb_ct_record_next(VALUE self)
     return rc == INOT_ERR ? Qnil : self;
 }
 
+/* 
+ * Retrieve the record index number in the table's active record list
+ *
+ * @return [Fixnum]
+ */
 static VALUE
 rb_ct_record_get_nbr(VALUE self)
 {
@@ -814,8 +835,9 @@ rb_ct_record_get_nbr(VALUE self)
     return INT2FIX(n);
 }
 
-/*
+/* 
  * Get the current record offset
+ * 
  * @return [Fixnum]
  */
 static VALUE
@@ -833,7 +855,7 @@ rb_ct_record_position(VALUE self)
     return INT2FIX(i);
 }
 
-/*
+/* 
  * Get the previous record on a table.
  *
  * @return [CT::Record, nil] The previous record or nil if the record does not exist.
@@ -873,8 +895,9 @@ rb_ct_record_read(VALUE self)
     return self;
 }
 
-/*
+/* 
  * Seek to the given record offset.
+ *
  * @return [CT::Record]
  */
 static VALUE
@@ -893,7 +916,7 @@ rb_ct_record_seek(VALUE self, VALUE offset)
     return self;
 }
 
-/*
+/* 
  * Set the new default index by name or number.
  *
  * @param [String, Symbol, Fixnum] The index identifier.
@@ -910,8 +933,8 @@ rb_ct_record_set_default_index(VALUE self, VALUE identifier)
     switch ( rb_type(identifier) ) {
         case T_STRING :
         case T_SYMBOL :
-            rc = ctdbSetDefaultIndexByName(record->handle,
-                                              RSTRING_PTR(RSTRING(identifier)));
+            rc = ctdbSetDefaultIndexByName( record->handle,
+                                            RSTRING_PTR(RSTRING(identifier)) );
             break;
         case T_FIXNUM :
             rc = ctdbSetDefaultIndex(record->handle, FIX2INT(identifier));
@@ -931,6 +954,7 @@ rb_ct_record_set_default_index(VALUE self, VALUE identifier)
 
 /*
  * Get a duplicate copy of the record
+ * 
  * @return [CT::Record]
  */
 static VALUE
@@ -954,11 +978,6 @@ rb_ct_record_duplicate(VALUE self)
     return obj;
 }
 
-/*
- *
- *
- *
- */
 static VALUE
 rb_ct_record_set_field(VALUE self, VALUE field_name, VALUE value)
 {
@@ -985,18 +1004,30 @@ rb_ct_record_set_field(VALUE self, VALUE field_name, VALUE value)
 
     switch ( field_type ) {
         case CT_BOOL :
-            rb_funcall(self, rb_intern("set_field_as_bool"), 2, field_name, value);
+            rb_funcall( self, 
+                        rb_intern("set_field_as_bool"), 
+                        2, 
+                        field_name, 
+                        value );
             break;
         case CT_TINYINT :
         case CT_SMALLINT :
         case CT_INTEGER :
         case CT_BIGINT :
-            rb_funcall(self, rb_intern("set_field_as_signed"), 2, field_name, value);
+            rb_funcall( self, 
+                        rb_intern("set_field_as_signed"), 
+                        2, 
+                        field_name, 
+                        value );
             break;
         case CT_UTINYINT :
         case CT_USMALLINT :
         case CT_UINTEGER :
-            rb_funcall(self, rb_intern("set_field_as_unsigned"), 2, field_name, value);
+            rb_funcall( self, 
+                        rb_intern("set_field_as_unsigned"), 
+                        2, 
+                        field_name, 
+                        value );
             break;
         case CT_CHARS :
         case CT_FPSTRING :
@@ -1005,46 +1036,77 @@ rb_ct_record_set_field(VALUE self, VALUE field_name, VALUE value)
         case CT_PSTRING :
         case CT_VARBINARY :
         case CT_LVB :
-        case CT_NUMBER :
         case CT_VARCHAR :
-            rb_funcall(self, rb_intern("set_field_as_string"), 2, field_name, value);
+            rb_funcall( self, 
+                        rb_intern("set_field_as_string"), 
+                        2, 
+                        field_name, 
+                        value );
             break;
         case CT_DATE :
-            rb_funcall(self, rb_intern("set_field_as_date"), 2, field_name, value);
+            rb_funcall( self, 
+                        rb_intern("set_field_as_date"), 
+                        2, 
+                        field_name, 
+                        value );
             break;
         case CT_TIMESTAMP :
-            rb_funcall(self, rb_intern("set_field_as_date_time"), 2, field_name, value);
+            rb_funcall( self, 
+                        rb_intern("set_field_as_date_time"), 
+                        2, 
+                        field_name, 
+                        value );
+            break;
+        case CT_NUMBER :
+            rb_funcall( self, 
+                        rb_intern("set_field_as_number"), 
+                        2, 
+                        field_name, 
+                        value );
             break;
         case CT_FLOAT :
         case CT_EFLOAT :
         case CT_MONEY :
         case CT_DOUBLE :
-            rb_funcall(self, rb_intern("set_field_as_float"), 2, field_name, value);
+            rb_funcall( self, 
+                        rb_intern("set_field_as_float"), 
+                        2, 
+                        field_name, 
+                        value );
             break;
         case CT_TIME :
-            rb_funcall(self, rb_intern("set_field_as_time"), 2, field_name, value);
+            rb_funcall( self, 
+                        rb_intern("set_field_as_time"), 
+                        2, 
+                        field_name, 
+                        value );
             break;
         case CT_CURRENCY :
-            rb_funcall(self, rb_intern("set_field_as_currency"), 2, field_name, value);
+            rb_funcall( self, 
+                        rb_intern("set_field_as_currency"), 
+                        2, 
+                        field_name, 
+                        value );
             break;
         default :
-            rb_raise(cCTError, "Unknown field type for `%s'", RSTRING_PTR(field_name));
+            rb_raise(cCTError, "Unknown field type for `%s'", 
+                    RSTRING_PTR(field_name));
             break;
     }
 
     return self;
 }
-// static VALUE
-// rb_ct_record_set_field_as_binary(VALUE self, VALUE num, VALUE value){}
-
-// static VALUE
-// rb_ct_record_set_field_as_blob(VALUE self, VALUE num, VALUE value){}
 
 /*
- * @param [Fixnum, String] id Field number or name.
- * @param [Boolean] value
- * @raise [CT::Error] ctdbSetFieldAsBool failed.
+ *static VALUE
+ *rb_ct_record_set_field_as_binary(VALUE self, VALUE num, VALUE value){}
  */
+
+/*
+ *static VALUE
+ *rb_ct_record_set_field_as_blob(VALUE self, VALUE num, VALUE value){}
+ */
+
 static VALUE
 rb_ct_record_set_field_as_bool(VALUE self, VALUE id, VALUE value)
 {
@@ -1069,10 +1131,6 @@ rb_ct_record_set_field_as_bool(VALUE self, VALUE id, VALUE value)
     return self;
 }
 
-/*
- * @param [Fixnum, String] id Field identifier
- * @param [Float] value
- */
 static VALUE
 rb_ct_record_set_field_as_currency(VALUE self, VALUE id, VALUE value)
 {
@@ -1091,19 +1149,15 @@ rb_ct_record_set_field_as_currency(VALUE self, VALUE id, VALUE value)
 
     field_number = get_field_number(record, id);
 
-    if ( ctdbSetFieldAsCurrency(record->handle, field_number, currency) != CTDBRET_OK )
+
+    rc = ctdbSetFieldAsCurrency(record->handle, field_number, currency);
+    if ( rc != CTDBRET_OK )  
         rb_raise(cCTError, "[%d] ctdbSetFieldAsCurrency failed for `%s'.",
-                ctdbGetError(record->handle), RSTRING_PTR(id));
+                 rc, RSTRING_PTR(id));
 
     return self;
 }
 
-/*
- *
- *
- * @param [Fixnum, String] id Field number or name.
- * @param [Date] value
- */
 static VALUE
 rb_ct_record_set_field_as_date(VALUE self, VALUE id, VALUE value)
 {
@@ -1139,9 +1193,6 @@ rb_ct_record_set_field_as_date(VALUE self, VALUE id, VALUE value)
     return self;
 }
 
-/*
- *
- */
 static VALUE
 rb_ct_record_set_field_as_date_time(VALUE self, VALUE id, VALUE value) 
 {
@@ -1183,31 +1234,33 @@ rb_ct_record_set_field_as_float(VALUE self, VALUE id, VALUE value)
     return self;
 }
 
-// static VALUE
-// rb_ct_record_set_field_as_money(VALUE self, VALUE num, VALUE value){}
-
 /*
  *static VALUE
- *rb_ct_record_set_field_as_number(VALUE self, VALUE id, VALUE value)
- *{
- *    ct_record *record;
- *    NINT field_number;
- *
- *    GetCTRecord(self, record);
- *
- *    field_number = get_field_number(record, id);
- *
- *    if ( ctdbSetFieldAsNumber(record->handle, 
- *}
+ *rb_ct_record_set_field_as_money(VALUE self, VALUE num, VALUE value){}
  */
 
-/*
- * Set field as CTSIGNED type value.
- *
- * @param [Fixnum, String] id Field number or name.
- * @param [Integer] value
- * @raise [CT::Error] ctdbSetFieldAsSigned failed.
- */ 
+static VALUE
+rb_ct_record_set_field_as_number(VALUE self, VALUE id, VALUE value)
+{
+    ct_record *record;
+    NINT field_number;
+    VALUE s;
+    CTDBRET rc;
+
+    Check_Type(value, T_BIGNUM);
+
+    GetCTRecord(self, record);
+
+    field_number = get_field_number(record, id);
+    s = rb_funcall(value, rb_intern("to_s"), 1, INT2FIX((int)2));
+
+    rc = ctdbSetFieldAsString(record->handle, field_number, RSTRING_PTR(s));
+    if ( rc != CTDBRET_OK )
+        rb_raise(cCTError, "[%d] ctdbSetFieldAsString failed.", rc); 
+
+    return self;
+}
+
 static VALUE
 rb_ct_record_set_field_as_signed(VALUE self, VALUE id, VALUE value)
 {
@@ -1226,9 +1279,7 @@ rb_ct_record_set_field_as_signed(VALUE self, VALUE id, VALUE value)
     return self;
 }
 
-/*
- *
- *
+/* 
  * @param [Fixnum, String] id Field number or name.
  * @param [String] value
  * @raise [CT::Error] ctdbSetFieldAsString failed.
@@ -1275,8 +1326,6 @@ rb_ct_record_set_field_as_string(VALUE self, VALUE id, VALUE value)
 }
 
 /*
- *
- *
  * @param [Fixnum, String] id Field number or name.
  * @param [Time] value
  */
@@ -1305,7 +1354,6 @@ rb_ct_record_set_field_as_time(VALUE self, VALUE id, VALUE value)
 }
 
 /*
- *
  * Set field as CTUNSIGNED type value.
  *
  * @param [Fixnum, String] id Field number or name.
@@ -1317,14 +1365,16 @@ rb_ct_record_set_field_as_unsigned(VALUE self, VALUE id, VALUE value)
 {
     ct_record *record;
     NINT field_number;
+    CTDBRET rc;
 
     GetCTRecord(self, record);
 
     field_number = get_field_number(record, id);
 
-    if ( ctdbSetFieldAsUnsigned(record->handle, field_number, FIX2INT(value)) != CTDBRET_OK )
+    rc = ctdbSetFieldAsUnsigned(record->handle, field_number, FIX2INT(value));
+    if ( rc != CTDBRET_OK )  
         rb_raise(cCTError, "[%d] ctdbSetFieldAsUnsigned failed for `%s'.",
-            ctdbGetError(record->handle), RSTRING_PTR(id));
+                rc, RSTRING_PTR(id));
 
     return self;
 }
@@ -1380,9 +1430,6 @@ rb_ct_record_set_off(VALUE self)
     return self;
 }
 
-/*
- *
- */
 static VALUE
 rb_ct_record_unlock(VALUE self)
 {
@@ -1393,10 +1440,6 @@ rb_ct_record_unlock(VALUE self)
     return ( (ctdbUnlockRecord(record->handle) == CTDBRET_OK) ? Qtrue : Qfalse );
 }
 
-/*
- *
- *
- */
 static VALUE
 rb_ct_record_unlock_bang(VALUE self)
 {
@@ -1411,9 +1454,6 @@ rb_ct_record_unlock_bang(VALUE self)
     return Qtrue;
 }
 
-/*
- *
- */
 static VALUE
 rb_ct_record_write(VALUE self)
 {
@@ -1424,6 +1464,7 @@ rb_ct_record_write(VALUE self)
 }
 /*
  * Create or update an existing record.
+ *
  * @raise [CT::Error] ctdbWriteRecord failed.
  */
 static VALUE
@@ -1493,6 +1534,7 @@ init_rb_ct_record()
     rb_define_method(cCTRecord, "set_field_as_date", rb_ct_record_set_field_as_date, 2);
     rb_define_method(cCTRecord, "set_field_as_date_time", rb_ct_record_set_field_as_date_time, 2);
     rb_define_method(cCTRecord, "set_field_as_float", rb_ct_record_set_field_as_float, 2);
+    rb_define_method(cCTRecord, "set_field_as_number", rb_ct_record_set_field_as_number, 2);
     rb_define_method(cCTRecord, "set_field_as_signed", rb_ct_record_set_field_as_signed, 2);
     rb_define_method(cCTRecord, "set_field_as_string", rb_ct_record_set_field_as_string, 2);
     rb_define_method(cCTRecord, "set_field_as_time", rb_ct_record_set_field_as_time, 2);

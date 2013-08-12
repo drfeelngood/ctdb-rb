@@ -19,11 +19,11 @@
     f2string: "NA"
     f4string: "UNK"
     bigint: 2652295
-    number: 1010011 
+    number: 10001101000011001011110 
     currency: 5000000.00
     pstring: ""
-    varbinary:
-    lvb:
+    varbinary: "hello world"
+    lvb: "foo bar"
     varchar: "I love c extensions!"
 -
     bool: false
@@ -46,11 +46,11 @@
     f2string: "NA"
     f4string: "YES"
     bigint: 2652295
-    number: "\xB3}\xB8\x96\xD0\x00" 
+    number: 11001101111011011110110 
     currency: 1.0010
     pstring: "Y"
-    varbinary:
-    lvb:
+    varbinary: "abcdefghijklmnop"
+    lvb: "bar"
     varchar: "Bacon is meat candy."
 -
     bool: false
@@ -73,9 +73,9 @@
     f2string: "NA"
     f4string: "UNK"
     bigint: 2652295
-    number: "\x12\xD20"
+    number: 10001101000011001001110 
     currency: 100.0078
     pstring: "N"
     varbinary: "abcdefghijklmnopqrstuvwxyz"
-    lvb:
+    lvb: "foo"
     varchar: "It's yummy beer time."
