@@ -9,6 +9,7 @@ module CT
       def_delegators :query, :each, :all, :first, :last, :count
 
       # Helper method to quickly construt a Query object.
+      # 
       # @param [Hash] options
       # @see CT::Query
       def query(options={})
@@ -24,23 +25,24 @@ module CT
       end
 
       # Retrieve a given record or set of records based on the given criteria.
+      # 
       # @see CT::Query
       def find(options={})
         query(options)
       end
 
-      # Seek a record by index and index segment values
-      # @param [Symbol, #to_s] index_name
-      def find_by(index_name, *values)
-        index_segments = {}
-        index = table.get_index(index_name.to_s)
-        index.segments.each_with_index do |segment, i|
-          index_segments[:"#{segment.field_name}"] = values[i]
-        end
-        p index_segments
-        puts index_segments.class
-        query.index(index_name).index_segments(index_segments)
-        query
+      # Find a +CT::Model+ by index.
+      #
+      # @example Find all people by then gender index.
+      #   Person.find_by(:gender, "female")
+      #
+      # @param [Symbol, #to_s] index_name The index name
+      # @param [Array] segments Index segment Index segment key values 
+      #
+      # @return [CT::Model, nil, CT::Query] A model of set of models
+      def find_by(index_name, segments={})
+        _query = query.index(index_name).index_segments(segments)
+        table.get_index(index_name.to_s).allow_dups? ? _query : _query.eq
       end
 
     end
@@ -50,12 +52,19 @@ module CT
     @@session_handler = nil unless defined?(@@session_handler)
 
     # Define CT::Session logon configuration
+    # 
     # @param [Hash] hash Configuration definition
+    # 
     # @see CT::Session#new
     # @see CT::Session#logon
+    # 
     # @example
-    #   CT::Model.session = { username: "",  password: "", engine: "FairComs",
-    #                         mode: CT::SESSION_CTREE }
+    #   CT::Model.session = { 
+    #     username: "",  
+    #     password: "", 
+    #     engine:   "FairComs",
+    #     mode:     CT::SESSION_CTREE 
+    #   }
     def self.session=(hash) # TODO: , scope=:default)
       hash.symbolize_keys!
       vars = [:engine, :username, :password, :mode]
@@ -69,35 +78,56 @@ module CT
       @@session_handler = CT::SessionHandler.new(_session)
     end
 
+    # Access the current +CT::SessionHandler+
+    #
     # @return [CT::SessionHandler]
     def self.session# TODO: (scope=:default)
       @@session_handler
     end
 
     # Set the table name
-    # @param [Symbol, #to_s] value
+    #
+    # @example Define the table name
+    #   self.table_name = :people
+    #
+    # @param [Symbol, #to_s] value The table name
     def self.table_name=(value)
       @table_name = value && value.to_s
     end
 
     # Get the table name
+    #
     # @return [String]
     def self.table_name
       @table_name
     end
 
     # Set the fully qualified path to the table
+    #
+    # @example Set the table path
+    #   self.table_path = "/path/to/nowhere"
+    #
     # @param [String] value
     def self.table_path=(value)
       @table_path = value && value.to_s
     end
 
     # Get the table path
+    # 
     # @return [String]
     def self.table_path
       @table_path
     end
 
+    # Set the +Model+ primary index.  Takes an optional hash of options.
+    #
+    # @example Define a primary index
+    #   self.primary_index = :email
+    #
+    # @example Define a composite primary index the contains a manually
+    #   incremented field.
+    #   self.primary_index = :email, { increment: :uid }
+    #
     # @overload primary_index=(name)
     #   Define the models CT::Table default index
     #   @param [Symbol] name The index name
@@ -119,7 +149,9 @@ module CT
     end
 
     # Aquire the current sessions table handle for this model
+    # 
     # @return [CT::Table]
+    # 
     # @raise [CT::Error] if the CT::Model#session has not been defined
     def self.table
       if session.nil?
@@ -129,13 +161,21 @@ module CT
       session.open_table(table_path, table_name)
     end
 
-    def self.create(attribs=nil)
-      me = new(attribs)
-      me.save
-    end
-
     # @!group Persistence
 
+    # Create a new record.  This will instantiate a new model object and insert
+    # a record.
+    #
+    # @example Create a new model
+    #   Person.create(title: "Mr.")
+    #
+    # @example Create a collection of models
+    #   Person.create([ {title: "Mr."}, {title: "Mrs."}])
+    #
+    # @param [Hash, Array] attribs The attributes to create a new object/record
+    #   or an Array of multiple attributes for multiple objects/records.
+    #
+    # @return [ CT::Model, Array<CT::Model>] The new record objects created
     def self.create(attribs=nil, &block)
       if attribs.is_a?(Array)
         attribs.collect { |a| create(a, &block) }
@@ -146,17 +186,36 @@ module CT
       end
     end
 
+    # Returns true if the +CT::Model+ has not been persisted to the table, else
+    # false if it has.
+    #
+    # @example Is the model new?
+    #   person.new_record?
+    #
+    # @return [true, false] True if new, else false if not.
     def new_record?
-      @new_record
+      @new_record ||= false
     end
 
     def destroyed?
       @destroyed
     end
 
+    # Checks to see if the model has been saved to the table.  The method 
+    # returns false if the model is destroyed.
+    #
+    # @example Is the model persisted
+    #   person.persisted?
+    #
+    # @return [true, false] True if persisted, false if not.
     def persisted?
       !(new_record? || destroyed?)
     end
+
+    def dirty? 
+      !@dirty_attributes.empty?
+    end
+    alias :changed? :dirty?
 
     def save
       result = new_record? ? create_record : update_record
@@ -188,28 +247,27 @@ module CT
     attr_reader :dirty_attributes
 
     # Initialize a new object with optional attributes.
+    # 
     # @param [Hash] attribs
-    def initialize(attribs=nil)
+    def initialize(attribs={})
       @new_record = true 
-
+      
       initialize_internals
       initialize_attributes
-      update_attributes(attribs) unless attribs.nil?
+      update_attributes(attribs)
       yield self if block_given?
     end
 
+    # Initialize a new object based on the given CT::Record.
+    # 
+    # @param [CT::Record] ct_record
     def init_with(ct_record)
       initialize_internals
       initialize_attributes
-
-      @attributes.each do |field_name, _|
-        begin
-          write_attribute(field_name, ct_record.get_field(field_name)) 
-        rescue NotImplementedError => e
-          warn(e.message)
-        end
+      @attributes.keys.each do |field_name|
+        write_attribute(field_name, ct_record.get_field(field_name))
       end
-      @new_record = false
+      @dirty_attributes = {}
     end
 
     # @see CT::Model.table
@@ -223,12 +281,18 @@ module CT
     end
 
     # Retrieve a collection of defined attribute names
+    # 
     # @return [Array]
     def attribute_names
       @attributes.keys
     end
 
+    def to_h
+      @attributes
+    end
+
     # Is the given attribute defined for the model
+    # 
     # @param [String. #to_s] name
     def has_attribute?(name)
       @attributes.key?(name.to_s)
@@ -236,7 +300,9 @@ module CT
     alias :respond_to? :has_attribute?
 
     # Get the given attribures value
+    # 
     # @param [String, #to_s] name
+    # 
     # @raise [CT::UnknownAttributeError] if the attribute is not defined
     def read_attribute(name)
       raise CT::UnknownAttribute.new(name) unless has_attribute?(name)
@@ -245,24 +311,40 @@ module CT
     alias :[] :read_attribute
 
     # Set the value of a given attribute
+    # 
     # @param [String, #to_s] name
     # @param [Object] value
+    # 
     # @raise [CT::UnknownAttributeError] if the attribute is not defined
     def write_attribute(name, value)
       raise CT::UnknownAttribute.new(name) unless has_attribute?(name)
       name = name.to_s
 
-      @attributes[name] = value #value.is_a?(String) ? value.strip : value
+      unless @dirty_attributes.include?(name)
+        begin
+          old_value = read_attribute(name)
+          old_value = old_value.duplicable? ? old_value.clone : old_value
+        rescue TypeError, NoMethodError
+        end
+        @dirty_attributes[name] = old_value
+      end
+
+      @attributes[name] = value
     end
     alias :[]= :write_attribute
 
     # Set a list of attributes
+    # 
     # @param [Hash] attribs Field key => value
     def update_attributes(attribs = {})
       attribs.each { |name, value| write_attribute(name, value) }
     end
 
     # Bump the given attributes value
+    # 
+    # @example Increment a numberic attribute
+    #   person.increment(:age)
+    #
     # @param [String, #to_s]
     def increment(attribute, by = 1)
       attribute = attribute.to_s
@@ -275,9 +357,9 @@ module CT
       inspection = []
       inspection << "primary_index: \"#{primary_index[:name]}\""
       inspection << "index_segments: #{primary_index_segments}"
-      inspection << "@new_record=\"#{@new_record}\""
+      inspection << "@new_record=\"#{new_record?}\""
       inspection << "@attributes=#{@attributes}"
-      inspection << "@dirty_attributes=#{@dirty_attributes}"
+      #inspection << "@dirty_attributes=#{@dirty_attributes}"
       "#<#{self.class.name} #{inspection * ', '}>"
     end
 
@@ -291,18 +373,12 @@ module CT
 
       def initialize_attributes
         table.get_fields.each do |field|
-          @attributes[field.name] = nil
+          @attributes[field.name] = nil 
           self.class.class_eval do
-            define_method(field.name) { read_attribute(field.name) }
+            define_method(field.name) do
+              read_attribute(field.name)
+            end
             define_method("#{field.name}=") do |value|
-              begin
-                _value = read_attribute(field.name)
-                _value = _value.duplicable? ? _value.clone : _value
-              rescue TypeError, NoMethodError
-              end
-              unless @dirty_attributes.include?(field.name)
-                @dirty_attributes[field.name] = _value
-              end
               write_attribute(field.name, value)
             end
           end
@@ -310,6 +386,7 @@ module CT
       end
 
       # Populate a Hash of field => value for each segment of the primary index
+      # 
       # @return [Hash]
       def primary_index_segments
         table.get_index(primary_index[:name]).segments.inject({}) do |h, s|
@@ -320,25 +397,16 @@ module CT
       end
 
       def create_record
-        record = CT::Record.new(table).clear
-        @dirty_attributes.each do |key,  _|
-          begin
-            record.set_field(key, @attributes[key])
-          rescue NotImplementedError => e
-            warn(e.message)
-          end
-        end
-
         if primary_index[:increment] && 
-            ( field = table.get_field(primary_index[:increment]) ) &&
-            ( record.get_field(primary_index[:increment]).nil? )
+           ( field = table.get_field(primary_index[:increment]) ) &&
+           @attributes[field.name].nil?
 
           last_record = Query.new(table)
                              .index(primary_index[:name])
                              .index_segments(primary_index_segments)
                              .last
 
-          value = if last_record
+          @attributes[field.name] = if last_record
             last_record.get_field(field.name) + 1
           elsif field.unsigned_integer?
             1
@@ -347,12 +415,15 @@ module CT
           else
             raise CT::Error.new("Unhandled primary index increment field type")
           end
-
-          record.set_field(field.name, value)
         end
 
+        record = CT::Record.new(table).clear
+        @attributes.each do |field_name, value| 
+          record.set_field(field_name, value)
+        end
         record.write!
-        @new_record = false
+
+        @dirty_attributes, @new_record = {}, false
         return true
       end
 
@@ -368,11 +439,7 @@ module CT
 
         record.with_write_lock! do
           @dirty_attributes.each do |key, _|
-            begin
-              record.set_field(key, @attributes[key])
-            rescue NotImplementedError => e
-              warn(e.message)
-            end
+            record.set_field(key, @attributes[key])
           end
           record.write!
         end
