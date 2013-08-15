@@ -9,11 +9,10 @@ class Hash
   end
 
   def stringify_keys!
-    clone.tap do |hash|
-      hash.keys.each do |key|
-        self[(key.to_s rescue key ) || key] = delete(key)
-      end
+    keys.each do |key|
+      self[key.to_s] = delete(key)
     end
+    self
   end
 
 end
