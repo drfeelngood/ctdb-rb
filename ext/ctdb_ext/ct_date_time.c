@@ -84,11 +84,8 @@ rb_ct_date_time_get_current_date_time(VALUE klass)
 static VALUE
 rb_ct_date_time_to_datetime(VALUE self)
 {
-    ct_date_time *datetime;
     VALUE parts;
     VALUE offset = INT2NUM(0);
-
-    GetCTDateTime(self, datetime);
 
     parts = RSEND(self, "unpack");
 

@@ -1,4 +1,4 @@
-source :rubygems
+source 'https://rubygems.org' 
 
 gemspec
 
@@ -8,7 +8,7 @@ group :development do
   gem 'yard'
   gem 'redcarpet'
   gem 'turn'
-  gem 'minitest'
   gem 'guard'
   gem 'guard-shell'
+  gem 'rspec'
 end
