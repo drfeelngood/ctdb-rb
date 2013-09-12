@@ -323,7 +323,6 @@ rb_ct_record_get_field(VALUE self, VALUE field_name)
 {
     ct_record *record;
     CTHANDLE field;
-    NINT field_nbr;
     CTDBTYPE field_type;
     VALUE rb_value = Qnil;
 
@@ -336,7 +335,6 @@ rb_ct_record_get_field(VALUE self, VALUE field_name)
         rb_raise(cCTError, "[%d] ctdbGetFieldByName failed for `%s'",
             ctdbGetError(record->handle), RSTRING_PTR(field_name));
 
-    field_nbr  = ctdbGetFieldNbr(field);
     field_type = ctdbGetFieldType(field);
 
     switch(field_type){
@@ -601,7 +599,7 @@ rb_ct_record_get_field_as_number(VALUE self, VALUE id)
     if ( rc != CTDBRET_OK )  
         rb_raise(cCTError, "[%d] ctdbNumberToBigint failed.", rc);
 
-    return INT2NUM(&i);
+    return INT2NUM((CTBIGINT)&i);
 }
 
 /*
@@ -615,28 +613,13 @@ static VALUE
 rb_ct_record_get_field_as_string(VALUE self, VALUE id)
 {
     ct_record *record;
-    CTHANDLE field;
-    CTDBTYPE field_type;
     NINT field_number;
     VRLEN len;
 
     GetCTRecord(self, record);
 
     field_number = get_field_number(record, id);
-
-    // Retrieve the actual field size. The actual size of variable-length fields,
-    // such as CT_VARCHAR and CT_VARBINARY, may vary from the defined size.
-    field      = ctdbGetField(record->table_ptr, field_number);
-    field_type = ctdbGetFieldType(field);
-    
-    /*
-     *if ( field_type == CT_VARCHAR || field_type == CT_VARBINARY ) 
-     */
-        len = ctdbGetFieldDataLength(record->handle, field_number);
-    /*
-     *else   
-     *    len = ctdbGetFieldLength(field);
-     */
+    len = ctdbGetFieldDataLength(record->handle, field_number);
 
     TEXT value[len+1];
     if ( ctdbGetFieldAsString(record->handle, field_number, value,
@@ -983,7 +966,6 @@ rb_ct_record_set_field(VALUE self, VALUE field_name, VALUE value)
 {
     ct_record *record;
     CTHANDLE field;
-    NINT field_nbr;
     CTDBTYPE field_type;
 
     Check_Type(field_name, T_STRING);
@@ -999,7 +981,6 @@ rb_ct_record_set_field(VALUE self, VALUE field_name, VALUE value)
         rb_raise(cCTError, "Field `%s' cannot be NULL.", 
             RSTRING_PTR(field_name));
     
-    field_nbr  = ctdbGetFieldNbr(field);
     field_type = ctdbGetFieldType(field);
 
     switch ( field_type ) {
@@ -1335,16 +1316,15 @@ rb_ct_record_set_field_as_time(VALUE self, VALUE id, VALUE value)
     ct_record *record;
     NINT field_number;
     CTDATE cttime;
-    CTDBRET rc;
 
     GetCTRecord(self, record);
 
     field_number = get_field_number(record, id);
 
-    rc = ctdbTimePack( &cttime,
-                       FIX2INT(RSEND(value, "hour")),
-                       FIX2INT(RSEND(value, "min")),
-                       FIX2INT(RSEND(value, "sec")) );
+    ctdbTimePack( &cttime,
+                  FIX2INT(RSEND(value, "hour")),
+                  FIX2INT(RSEND(value, "min")),
+                  FIX2INT(RSEND(value, "sec")) );
 
     if ( ctdbSetFieldAsTime(record->handle, field_number, cttime) != CTDBRET_OK )
         rb_raise(cCTError, "[%d] ctdbSetFieldAsTime failed for `%s'.",

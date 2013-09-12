@@ -146,10 +146,7 @@ rb_ct_time_to_string(VALUE self)
 static VALUE
 rb_ct_time_to_time(VALUE self)
 {
-    ct_time *time;
     VALUE parts;
-
-    GetCTTime(self, time);
 
     parts = RSEND(self, "unpack");
 
