@@ -4,9 +4,9 @@ A no fluff extension implementing the FairCom c-tree ctdb sdk.
 
 ## Install
 
-Make sure you have our internal gem repository added to your gem sources.
-
-    $ gem install ctdb -- --with-faircom-dir=/path/to/c-treeACE
+```
+$ gem install ctdb
+```
 
 ### Session
 
@@ -74,37 +74,53 @@ session.logout
 
 ## CT::Model
 
-"The" cTree ORM
-
 ```ruby
 require 'ctdb'
 
-class Foo < CT::Model
+class Person < CT::Model
   self.table_path = "/path/to"
-  self.table_name = :foos
-  self.primary_key = :bar_ndx, increment: :sequence
+  self.table_name = :people
+  self.primary_key = :index_on_email
 end
 
-CT::Model.session = { engine: "FAIRCOMS", username: "", password: "" }
+# Configure c-tree session
+CT::Model.session = { 
+    engine: "FAIRCOMS", 
+    username: "", 
+    password: "",
+    mode: CT::SESSION_CTREE
+}
 
-foo = Foo.find(index: :foo_ndx).index_segments(bar: 1234, sequence: 2).eq
+# Find a record by index
+person = Person.find_by(:index_on_email, "dan@dj-agiledev.com")
 ```
 
 ## CT::Query
 
-Interface to perform record queries.
+Simple interface to perform `CT::Record` queries.
 
 #### Options
 
+* find_mode
 * index
 * index_segments
 * limit
 * offset
 * filter
+* endif
 * transformer
 
 ```ruby
-record = CT::Query.new(table).index(:bar_ndx).index_segments(sequence: 5).eq
+
+person = CT::Query.new(table)
+                  .index(:email_ndx)
+                  .index_segments(email: "dan@dj-agiledev.com")
+                  .eq
+
+# Server side filtering.  Find all people in the great state of Oklahoma
+people = CT::Query.new(table)
+                  .filter(%Q{strncmp(state, "OK", 2) == 0})
+                  .set
 ```
 
 ## Contributing
@@ -113,9 +129,3 @@ record = CT::Query.new(table).index(:bar_ndx).index_segments(sequence: 5).eq
 * Create a topic branch
 * Hack away
 * Submit a pull request
-
-**Note:** Before you get started, scope out the documentation to get familiar with
-the project.  You can do this by running `rake yard`, then open doc/index.html 
-with your preferred browser.  Also, if your lazy like me run `rake guard`.  This 
-will automagically compile the c extension after you modify the ctdb_skd.c file. 
-This speeds up the process when debugging.    
