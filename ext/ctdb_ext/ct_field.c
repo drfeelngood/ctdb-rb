@@ -37,17 +37,37 @@ rb_ct_field_get_null_flag(VALUE self)
     return ctdbGetFieldNullFlag(field->handle) == YES ? Qtrue : Qfalse;
 }
 
-// TODO:
 static VALUE
 rb_ct_field_get_default(VALUE self)
 {
-    return self;
+    pTEXT defaultValue;
+    ct_field *field;
+    VRLEN len;
+
+    GetCTField(self, field);
+
+    defaultValue = ctdbGetFieldDefaultValue(field->handle, &len);
+
+    if (defaultValue) {
+      return rb_str_new_cstr(defaultValue);
+    }
+    else {
+      return Qnil;
+    }
 }
 
-// TODO:
 static VALUE
 rb_ct_field_set_default(VALUE self, VALUE value)
 {
+    ct_field *field;
+    pTEXT cval;
+
+    cval = RSTRING_PTR(RSEND(value, "to_s"));
+
+    GetCTField(self, field);
+
+    ctdbSetFieldDefaultValue(field->handle, cval, strlen(cval));
+
     return self;
 }
 
