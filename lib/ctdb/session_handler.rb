@@ -1,6 +1,14 @@
+require 'forwardable'
+
 module CT
   class SessionHandler
-    
+
+    extend Forwardable
+
+    def_delegator :@session, :logout, :logout!
+    def_delegator :@session, :active?
+    def_delegator :@session, :locked?
+
     # !@attribute [r] session
     # @return [CT::Session] The active session
     attr_reader :session
