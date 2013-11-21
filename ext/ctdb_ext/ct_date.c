@@ -273,4 +273,6 @@ init_rb_ct_date()
     rb_define_method(cCTDate, "type", rb_ct_date_get_type, 0);
     /*rb_define_method(cCTDate, "leap_year?", rb_ct_date_is_leap_year, 0);*/
     /*rb_define_method(cCTDate, "day_of_week", rb_ct_date_get_day_of_week, 0);*/
+
+    rb_define_alias(cCTDate, "month", "mon");
 }
