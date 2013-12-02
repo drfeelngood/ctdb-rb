@@ -15,6 +15,11 @@ class TestCTSession < Test::Unit::TestCase
     assert_equal(false, @session.active?)
   end
 
+  def test_free
+    assert_nothing_raised { @session = CT::Session.new(CT::SESSION_CTREE) }
+    assert_equal(false, @session.active?)
+  end
+
   def test_path_prefix
     path = "/foo/bar"
 

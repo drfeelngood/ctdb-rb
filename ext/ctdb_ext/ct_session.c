@@ -10,7 +10,9 @@ static void
 free_rb_ct_session(void *ptr) {
     ct_session *session = (ct_session *)ptr;
 
-    if ( ctdbIsActiveSession(session->handle) )
+    /*
+     *if ( ctdbIsActiveSession(session->handle) )
+     */
         ctdbLogout(session->handle);
 
     ctdbFreeSession(session->handle);
