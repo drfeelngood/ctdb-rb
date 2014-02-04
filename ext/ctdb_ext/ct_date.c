@@ -139,6 +139,7 @@ rb_ct_date_to_string(VALUE self)
     }
 
     if ( date->value > 0 ) {
+        fflush(stdout);
         size = (VRLEN)(strlen(format) + 3);
         if ( (rc = ctdbDateToString(date->value, date->type, &str, size) ) != CTDBRET_OK )
             rb_raise(cCTError, "[%d] ctdbDateToString failed.", rc);
